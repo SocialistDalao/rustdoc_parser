@@ -118,6 +118,7 @@ def is_unstable(stability: list) -> int:
     return len(stability)
 
 
+
 # Mappings of Kind -> API Type
 # Note this includes most of them. We try to handle most of them, but still find some are missing.
 # Refer to rustdoc source code `rust/src/librustdoc/html/render/print_items.rs` in Rust repo for more.
@@ -176,56 +177,134 @@ def get_pres(soup):
     return pre_list
 
 
+# Check if the item is stability item.
+# Return `None` if not.
+def get_stability(item, version_num) -> str:
+    if item.name != 'div':
+        return None
+    div_class = item.get('class', [''])
+    if version_num <= 48 and div_class[0] == 'stability':
+        return div_class.text
+    if version_num >= 49 and div_class[0] == 'item-info':
+        return div_class.text
+    return None
+
+
+
+def get_api(item) -> str:
+    span = item.find('span', recursive = False)
+    if span and span.code:
+       return item.find('span', recursive = False).code.text
+    if not item.code:
+        # Some fields (very few) cannot be successfully parsed.
+        print('cannot find api', item)
+        return ''
+    return item.code.text
 
 
 
 
-def parse_html_div_items(div, parse_tag) -> list:
+def parse_html_div_items(div, version_num, tag_type = None) -> list:
     '''
     Parse div items, including `impl xxx` or `impl xxx for xxx`. All div items are impls.
     &Input `soup` should be div items. `parse_tag` should be either `h3` or `h4`
     &Return all impl funtions in the `div`.
     '''
-    h4_start = div.find(parse_tag, recursive=False)
-    if not h4_start:
-        return list()
+    # Check parse tags first.
+    h3_start = div.find('h3', recursive = False)
+    h4_start = div.find('h4', recursive = False)
+    if h3_start and h4_start:
+        print('div contains both h3 and h4')
+    tag_start = h4_start
+    parse_tag = 'h4'
+    if h3_start:
+        tag_start = h3_start
+        parse_tag = 'h3'
+    if tag_type:
+        tag_start = div.find(tag_type, recursive = False)
+        parse_tag = tag_type
+    if not tag_start:
+        return None
+    
     function = empty_function()
-    # print(h4_start)
-    function['api'] = h4_start.code.text
+    function['api'] = get_api(tag_start)
     function_list = list()
-    for sibling in h4_start.next_siblings:
+    for sibling in tag_start.next_siblings:
         if sibling.name == parse_tag:
-            function_list.append(function)
+            function_list.append(function.copy())
             function = empty_function()
-            function['api'] = sibling.code.text
-        if sibling.name == 'div' and sibling['class'][0] == 'stability':
-            function['stability'].append(sibling.text)
+            function['api'] = get_api(sibling)
+        stability = get_stability(sibling, version_num)
+        if stability:
+            function['stability'].append(stability)
         if sibling.name == 'h2': # Exit when out of scope
             break
-    function_list.append(function)
+    function_list.append(function.copy())
     return function_list
 
 
 
-def parse_html_spanitems(first_span) -> list:
+def is_fields_indiv(div) -> bool:
+    if div.find('code', recursive = False):
+        return True
+    return False
+
+
+
+def parse_fields_indiv(div, version_num) -> list:
+    '''
+    Data fields may be in 'div' since 1.38.0. We resolve it.
+    '''
+    function = empty_function()
+    function['api'] = div.code.text
+    function_list = list()
+    for sibling in div.next_siblings:
+        if sibling.name == 'div' and sibling.find('code', recursive = False):
+            function_list.append(function.copy())
+            function = empty_function()
+            function['api'] = sibling.code.text
+        stability = get_stability(sibling, version_num)
+        if stability:
+            function['stability'].append(stability)
+        if sibling.name == 'h2':
+            break
+    function_list.append(function.copy())
+    return function_list
+
+
+
+
+# From 1.10.0 Data fields html tags become `span` organized.
+# From 1.21.0 Implementations may be collapsed to `span` rather than in `div`
+# From 1.38.0 Data fields are organized in `div` rather than `span`.
+def parse_html_spanitems(first_span, version_num) -> list:
     '''
     span items occur in structs, enums, unions, xxx. We parse them seperately.
+    Span items can also appear in collapsed impl functions.
     @Input: First span items
     @Return all fields in span items.
     '''
+    if not first_span.code:
+        return None
+    div = first_span.find('div', recursive = False)
+    if div:
+        return parse_html_div_items(div)
     function = empty_function()
     function['api'] = first_span.code.text
     function_list = list()
     for sibling in first_span.next_siblings:
         if sibling.name == 'span':
-            function_list.append(function)
+            if not sibling.code:
+                continue
+            function_list.append(function.copy())
             function = empty_function()
             function['api'] = sibling.code.text
-        if sibling.name == 'div' and sibling['class'][0] == 'stability':
-            function['stability'].append(sibling.text)
+        stability = get_stability(sibling, version_num)
+        if stability:
+            function['stability'].append(stability)
         if sibling.name == 'h2': # Exit when out of scope
             break
-    function_list.append(function)
+    function_list.append(function.copy())
     return function_list
 
 
@@ -234,20 +313,66 @@ def process_fileds(tag, version_num) -> list:
     '''
     Enums, structs and other types may have its variables inside fields.
     The html tags of these fields are frequently changing. We handle this seperately.
+    Return `None` if not recognized.
     '''
     function_list = list()
     if tag.name == 'table':
-        for tr in tag.tbody.find_all('tr', recursive = False):
+        for tr in tag.find_all('tr', recursive = False):
             function = empty_function()
             function['api'] = tr.code.text
-            stability = tr.find('div', class_ = 'stability')
-            if stability:
-                function['stability'].append(sibling.text)
-    # TODO
-    return function_list
+            stabilities = tr.find_all('div', class_ = 'stability')
+            for stability in stabilities:
+                function['stability'].append(stability.text)
+            function_list.append(function.copy())
+        return function_list
+    elif tag.name == 'span':
+        return parse_html_spanitems(tag, version_num)
+    else:
+        return None
 
 
-def parse_html_h2items(h2) -> list:
+
+def is_h3h4_collapsed(div) -> bool:
+    '''
+    h3h4 items may be collapsed into `div`. We check it.
+    This is first found in rustc 1.21.0
+    '''
+    for h3 in div.find_all('h3', recursive = False):
+        for sibling in h3.next_siblings:
+            if sibling.name == 'div':
+                h4 = sibling.find('h4', recursive = False)
+                if h4 and h4.code:
+                    return True
+            if sibling.name == 'h3':
+                break
+    return False
+
+
+
+def parse_h3h4_indiv(div) -> list:
+    '''
+    h3h4 items may be collapsed into `div`. We check it.
+    This is first found in rustc 1.21.0
+    '''
+    first_h3 = div.find('h3', recursive = False)
+    impl_list = list()
+    impl = empty_impl()
+    impl['impl'] = first_h3.code.text
+    for sibling in first_h3.next_siblings:
+        if sibling.name == 'h3':
+            impl = empty_impl()
+            impl['impl'] = sibling.code.text
+        if sibling.name == 'div':
+            functions = parse_html_div_items(sibling)
+            if functions:
+                impl['functions'] = functions
+                impl_list.append(impl.copy())
+    return impl_list
+
+
+# Since 1.49.0, `stability` items are stored in `div` with class `stab unstable`
+# From 1.52.0, impls are not stored in `h3` but `details` instead. Other formats change, too.
+def parse_html_h2items(h2, version_num) -> list:
     '''
     Parse items under h2, including `Methods`, `Trait Implementations`, etc.
     The format may change in different rustdoc version, but not too much.
@@ -271,65 +396,51 @@ def parse_html_h2items(h2) -> list:
     #     impl_list.append(impl)
 
     impl = empty_impl()
-    # if h2.name == 'h3' and h2.code: # Probably start with h3 directly.
-    #     impl['impl'] = h2.code.text
     impl_list = list()
-    # If the first item is `span`. It means we are dealing with fileds.
-    sibling = h2.next_sibling
-    if sibling.name == 'span':
-        impl = empty_impl()
-        impl['impl'] = " ".join(sibling.text.split()) # same as h2 header
-        impl['functions'] = parse_html_spanitems(sibling)
-        impl_list.append(impl)
-        return impl_list
-
     for sibling in h2.next_siblings:
         if sibling.name == 'h2':
             return impl_list
-        if sibling.name == 'h3':
+        elif sibling.name == 'h3':
             impl = empty_impl()
             # Seems only occur in: ['Derived Implementations']
             if not sibling.code:
-                print('h3 has no code ' + str(sibling))
+                if not sibling['id'] == 'derived_implementations':
+                    print('h3 has no code ' + str(sibling))
                 continue
             impl['impl'] = sibling.code.text
-        if sibling.name == 'div':
-            if impl['impl'] == '':
-                # print('h3')
-                # return parse_html_h2items(sibling.find('h3', recursive = False))
-                impl['functions'] = parse_html_div_items(sibling, 'h3')
-            else:
-                impl['functions'] = parse_html_div_items(sibling, 'h4')
-            # if len(impl['functions']) == 0:
-            #     print('Empty impl functions found', impl['impl'])
-            impl_list.append(impl)
-
-        # `Span` items are presented when 'div' items are set autohide
-        if sibling.name == 'span':
-            if sibling['class'][0] == 'loading-content':
-                continue
-            else:
-                assert len(impl['functions']) == 0, 'div has functions and span is found'
-            if impl['impl'] == '':
-                impl['functions'] = parse_html_div_items(sibling.div, 'h3')
-            else:
-                impl['functions'] = parse_html_div_items(sibling.div, 'h4')
-            impl_list.append(impl)
-
+        elif sibling.name == 'div':
+            # Collapsed impls are in `div` list.
+            if version_num >= 21 and impl['impl'] == '' and is_h3h4_collapsed(sibling):
+                return parse_h3h4_indiv(sibling)
+            if version_num >= 38 and impl['impl'] == '' and is_fields_indiv(sibling):
+                impl['functions'] =  parse_fields_indiv(sibling)
+                impl_list.append(impl.copy())
+                return impl_list
+            functions = parse_html_div_items(sibling)
+            if functions:
+                impl['functions'] = functions
+                impl_list.append(impl.copy())
         # 'Implementors' items are presented in `ul` list.
-        if sibling.name == 'ul':
+        elif sibling.name == 'ul':
             impl = empty_impl()
-            assert sibling['id'] == 'implementors-list'
+            assert 'implementors-list' in sibling['id']
             impl['impl'] = sibling['class'][0]
-            impl['functions'] = parse_html_div_items(sibling, 'li')
-            impl_list.append(impl)
-
+            functions = parse_html_div_items(sibling, 'li')
+            if functions:
+                impl['functions'] = functions
+                impl_list.append(impl.copy())
+        else:
+            function_list = process_fileds(sibling, version_num)
+            if function_list:
+                impl['functions'] = function_list
+                impl_list.append(impl.copy())
+                return impl_list
     return impl_list
 
 
 
 # Get submodule metadate (name, path, etc)
-def parse_html_inband(soup):
+def parse_html_inband(soup, version_num):
     '''
     Get submodule metadate (kind, path, api, stability, and items). It is uniquely defined by `path`. You can assume it as its ID.
     @Input: Html bs. If it is a module, we won't process items, as items are submodules can will be processed seperately.
@@ -352,7 +463,8 @@ def parse_html_inband(soup):
         # No kind
         path = item[0]
     elif len(item) == 3:
-        assert item[0] == 'Primitive' or item[0] == 'Type', "Complex kind logic wrong"
+        if item[0] not in ['Primitive', 'Type', 'Foreign']: 
+            print("Complex kind detected", item)
         kind == item[0]
         path = item[2]
     else:
@@ -387,15 +499,15 @@ def parse_html_inband(soup):
     for sibling in head.next_siblings:
         if sibling.name == 'h2':
             break
-        if sibling.name == 'div' and sibling['class'][0] == 'stability':
-            submodule['stability'].append(sibling.text)
-            break
+        stability = get_stability(sibling, version_num)
+        if stability:
+            submodule['stability'].append(stability)
     return submodule
 
 
 
-
-def parse_html(html_path):
+# From 1.58.0, the header is not organized with the beginning of `h1` with class `fqn`.
+def parse_html(html_path, version_num):
     '''
     Here we will parse html file, which may be a module or submodule (e.g. function, struct, enum).
     @Algorithm:
@@ -411,11 +523,11 @@ def parse_html(html_path):
         return None
 
     is_module = False
-    if 'index.html' in html_path:
+    if '/index.html' in html_path:
         is_module = True
 
     # Parse metadata
-    submodule = parse_html_inband(soup)
+    submodule = parse_html_inband(soup, version_num)
     if submodule == None:
         return None
     
@@ -427,25 +539,21 @@ def parse_html(html_path):
             if sibling.name == 'h2':
                 inner = empty_item()
                 inner['head'] = " ".join(sibling.text.split()) # head text contain duplicate spaces and new lines. We remove them.
-                inner['impls'] = parse_html_h2items(sibling)
-                inner_list.append(inner)
+                inner['impls'] = parse_html_h2items(sibling, version_num)
+                inner_list.append(inner.copy())
         submodule['items'] = inner_list
 
     # Check if all ruf are collected
     collected_unstable_count = get_unstable_count(submodule)
-    stability_items = soup.find_all('div', class_='stability')
+    if version_num <= 48:
+        stability_items = soup.find_all('div', class_='stability')
+    else:
+        stability_items = soup.find_all('div', class_='item-info')
     html_unstable_count = len(stability_items)
     if collected_unstable_count != html_unstable_count:
+        # print(html_path, 'misses unstable items' + str(submodule))
         print('misses unstable items' + str(submodule))
-
-    # Check if all codes (impl) are collected.
-    # collected_items_count = get_items_count(submodule)
-    # code_items = soup.find_all('code')
-    # code_count = len(code_items)
-    # if collected_items_count != code_count:
-    #     print('misses code items', 'collected->code items',collected_items_count, code_count, str(submodule))
-
-    return submodule
+    return (submodule, collected_unstable_count, html_unstable_count)
 
 
 def get_crates(doc_directory):
@@ -535,7 +643,26 @@ def test_div_types(html_path):
 
 
 
-def parse_all_docs():
+stab_set = set()
+def test_stab_items(html_path):
+    # print('Parsing html', html_path)
+    html_content = open(html_path, 'r').read()
+    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = soup.find_all('div')
+    for div in soup:
+        div_class = div.get('class', [''])
+        if div_class[0] == 'item-info':
+            for stab in div.find_all('div', class_ = 'stab'):
+                div_class_string = ''
+                for div_class_item in stab.get('class', ['']):
+                    div_class_string += div_class_item + ' '
+                stab_set.add(div_class_string)
+
+
+
+
+
+def parse_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
     '''
     Parse all rustdocs to get items data in different compiler versions.
     These data are actually Abstract Resource Tree. Through analysing AST, we can know API evolution, especially unstable API.
@@ -544,26 +671,52 @@ def parse_all_docs():
     2. We call `parse_html()` to parse all html files, which contain AST of all data (e.g. modules, primitives, functions, structs).
 
     '''
-    MIN_VERSION = 3
-    MAX_VERSION = 20
     for i in range(MIN_VERSION, MAX_VERSION+1):
         version_num = '1.' + str(i) + '.0'
         # Find root html: std/index.html
-        doc_directory = '/media/loancold/HardDisk/ProjectInDisk/rustdoc_html_parser/' + version_num + '/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html'
+        current_directory = os.getcwd() + '/'
+        doc_directory = current_directory + version_num + '/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html'
         crates_item = get_crates(doc_directory)
 
         # Find all html
+        total_unstable_collected = 0
+        total_unstable_exist = 0
         for crate in crates_item:
             crate = crate.string
             if crate == 'test':
                 continue
             crate_directory = doc_directory + '/' + crate
             for file_name in glob(crate_directory + '/**/*.html', recursive=True):
-                parse_html(file_name)
+                tuples = parse_html(file_name, i)
+                if tuples == None:
+                    continue
+                (submodule, collected_unstable_count, html_unstable_count) = tuples
+                total_unstable_collected += collected_unstable_count
+                total_unstable_exist += html_unstable_count
                 # test_div_types(file_name)
+                # test_stab_items(file_name)
+                # print(stab_set)
+                # print(stab_set)
+        print(version_num, total_unstable_collected, total_unstable_exist)
 
 
+# parse_all_docs(60,63)
+# crawl_rustdoc()
 # test_html_pre_types()
-parse_all_docs()
+# parse_all_docs()
 # print(div_class_set)
-# print_pretty(parse_html('/media/loancold/HardDisk/ProjectInDisk/rustdoc_html_parser/1.42.0/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html/alloc/rc/struct.Weak.html'))
+# print_pretty(parse_html('/home/loancold/Projects/rustdoc_parser/1.38.0/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html/alloc/str/pattern/enum.SearchStep.html', 38))
+import sys
+if sys.argv[1] == 'complete':
+    parse_all_docs()
+elif sys.argv[1] == 'complete_selected':
+    parse_all_docs(int(sys.argv[2]), int(sys.argv[3]))
+else:
+    print_pretty(parse_html(sys.argv[1], int(sys.argv[2]))[0])
+
+'''
+Found issue:
+    1. `std::ptr::Unique` and `std::ptr::Shared` have duplicate items in h2 `Methods from Deref<Target=*mut T>`, from 1.2.0 to 1.7.0
+    We dismiss it.
+    2. Recursive data type definitions. Such as `core::ops::RangeInclusive` from 1.8.0 to 1.17.0, `'std::heap::AllocErr'` from 1.19.0 to 1.25.0, 'alloc::collections::TryReserveError' from 1.38.0 to 1.48.0
+'''
