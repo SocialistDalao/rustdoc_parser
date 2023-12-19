@@ -91,7 +91,7 @@ def empty_function():
     }
 
 
-# `funtions` not not be functions. `impl` may indicate `fields` of structs, enums, unions.
+# `funtions` may not be functions. It is betther viewed as API. `impl` may indicate `fields` of structs, enums, unions.
 def empty_impl():
     return {
         'impl': '',
@@ -178,26 +178,50 @@ def get_pres(soup):
 
 
 # Check if the item is stability item.
-# Return `None` if not.
+# Return `None` if not. Return valid string if it is.
 def get_stability(item, version_num) -> str:
-    if item.name != 'div':
+    '''
+    Check if the item is stability item.
+    Return `None` if not. Return valid string if it is.
+    Sometimes there will be multiple stability items. We return merged string since 1.48.0.
+    We do this because only one of them are stability items and others are portability items.
+    '''
+    if item.name not in ['div', 'span']:
         return None
-    div_class = item.get('class', [''])
-    if version_num <= 48 and div_class[0] == 'stability':
-        return div_class.text
-    if version_num >= 49 and div_class[0] == 'item-info':
-        return div_class.text
+    item_class = item.get('class', [''])
+    if version_num <= 48 and item_class[0] == 'stability':
+        return item.text
+    if version_num >= 49 and item_class[0] == 'item-info':
+        return item.text
     return None
 
 
 
-def get_api(item) -> str:
+# Sometimes it includes `\u24d8` which is followed by notable-trait info, useless in our study.
+def get_api(item, version_num = 0) -> str:
+    if version_num >= 52:
+        if item and item.h3:
+            if item.h3.code:
+                return item.h3.code.text
+            return item.h3.text
+        elif item and item.h4:
+            if item.h4.code:
+                return item.h4.code.text
+            return item.h4.text
+        elif item and item.code:
+            return item.code.text
+        else:
+            # print('cannot find api', item.text)
+            return ''
     span = item.find('span', recursive = False)
     if span and span.code:
        return item.find('span', recursive = False).code.text
+    code = item.find('code', recursive = False)
+    if code:
+        return code.text
     if not item.code:
         # Some fields (very few) cannot be successfully parsed.
-        print('cannot find api', item)
+        # print('cannot find api', item)
         return ''
     return item.code.text
 
@@ -234,6 +258,8 @@ def parse_html_div_items(div, version_num, tag_type = None) -> list:
             function_list.append(function.copy())
             function = empty_function()
             function['api'] = get_api(sibling)
+            # if 'impl' in function['api']:
+            #     print(sibling.text)
         stability = get_stability(sibling, version_num)
         if stability:
             function['stability'].append(stability)
@@ -288,7 +314,7 @@ def parse_html_spanitems(first_span, version_num) -> list:
         return None
     div = first_span.find('div', recursive = False)
     if div:
-        return parse_html_div_items(div)
+        return parse_html_div_items(div, version_num)
     function = empty_function()
     function['api'] = first_span.code.text
     function_list = list()
@@ -331,6 +357,31 @@ def process_fileds(tag, version_num) -> list:
         return None
 
 
+def is_details_collapsed(div, version_num = 0) -> str:
+    '''
+    Details items may be collapsed into `div`. We check it.
+    This is first found in rustc 1.xx.0
+    '''
+    if not div.find('details', recursive = False):
+        if div.find('section', recursive = False):
+            return 'section'
+        if div.find('div', recursive = False):
+            for div_item in div.find_all('div', recursive = False):
+                if div_item.find('code', recursive = False):
+                    return 'div_div_code'
+        return 'unknown'
+    for detail in div.find_all('details', recursive = False):
+        if detail.find('details', recursive = False):
+            return 'collapsed'
+        for inner_div in detail.find_all('div', recursive = False):
+            if inner_div.find('details', recursive = False):
+                return 'collapsed'
+            if inner_div.find('section', recursive = False):
+                return 'collapsed'
+            if version_num == 53 and inner_div.find('div', recursive = False):
+                return 'collapsed'
+    return 'notcollapsed'
+
 
 def is_h3h4_collapsed(div) -> bool:
     '''
@@ -349,7 +400,7 @@ def is_h3h4_collapsed(div) -> bool:
 
 
 
-def parse_h3h4_indiv(div) -> list:
+def parse_h3h4_indiv(div, version_num) -> list:
     '''
     h3h4 items may be collapsed into `div`. We check it.
     This is first found in rustc 1.21.0
@@ -363,15 +414,168 @@ def parse_h3h4_indiv(div) -> list:
             impl = empty_impl()
             impl['impl'] = sibling.code.text
         if sibling.name == 'div':
-            functions = parse_html_div_items(sibling)
+            functions = parse_html_div_items(sibling, version_num)
             if functions:
                 impl['functions'] = functions
                 impl_list.append(impl.copy())
     return impl_list
 
 
+
+
+def parse_single_detail_function(function_detail, version_num) -> dict:
+    function = empty_function()
+    for inner in function_detail.find_all(recursive = False):
+        if inner.name == 'summary':
+            if get_api(inner, version_num) == '':
+                continue
+            if version_num >= 52:
+                for item in inner.find_all(recursive = False):
+                    stability = get_stability(item, version_num)
+                    if stability:
+                        function['stability'].append(stability)
+            function['api'] = get_api(inner, version_num)
+        if function['api'] == '':
+            function['api'] = get_api(inner, version_num)
+        stability = get_stability(inner, version_num)
+        if stability:
+            function['stability'].append(stability)
+    if function['api'] == '':
+        alternative_api = get_api(function_detail, version_num)
+        if version_num >= 52 and alternative_api != '':
+            function['api'] = alternative_api
+            # print('alternative api' ,alternative_api)
+        else:
+            print('No api found in single_detail_function', function_detail.text)
+            return None
+    return function
+
+
+# Return `impl` item.
+def parse_html_detail_impl_items(detail, version_num) -> dict:
+    impl = empty_impl()
+    if get_api(detail.find('summary', recursive = False), version_num) == '':
+        print('cannot find impl head', detail.text)
+    impl['impl'] = get_api(detail.find('summary', recursive = False), version_num)
+    # print('impl:', impl['impl'])
+    for possible_div in detail.find_all('div', recursive = False):
+        if version_num == 53:
+            for inner_div in possible_div.find_all('div', recursive = False):
+                print(inner_div.text)
+                function = parse_single_detail_function(inner_div, version_num)
+                if function:
+                    impl['functions'].append(function.copy())
+        for inner_detail in possible_div.find_all('details', recursive = False):
+            print(inner_detail.name)
+            if inner_detail.find('details', recursive = False):
+                for hidden_detail in inner_detail.find_all('details', recursive = False):
+                    function = parse_single_detail_function(hidden_detail, version_num)
+                    if function:
+                        impl['functions'].append(function.copy())
+            else:
+                if version_num == 52:
+                    for hidden_h4 in inner_detail.find_all('h4', recursive = False):
+                        # print(hidden_h4.text)
+                        function = parse_single_detail_function(hidden_h4, version_num)
+                        if function:
+                            impl['functions'].append(function.copy())
+                else:
+                    function = parse_single_detail_function(inner_detail, version_num)
+                    if function:
+                        impl['functions'].append(function.copy())
+        for inner_section in possible_div.find_all('section', recursive = False):
+            function = parse_single_detail_function(inner_section, version_num)
+            if function:
+                impl['functions'].append(function.copy())
+
+    return impl
+
+
+def parse_section_indiv(div, version_num) -> list:
+    '''
+    '''
+
+
+
+def parse_html_h2items_details(h2, version_num) -> list:
+    '''
+    Since 1.52.0, impls are not stored in `h3` but `details` instead. Other formats change, too.
+    We use this function to parse them.
+    '''
+    assert version_num >= 52, 'This function is only for version >= 1.52.0'
+    impl = empty_impl()
+    impl_list = list()
+    # First, we check if they are specific cases
+    if h2['id'] == 'variants':
+        impl = empty_impl()
+        function = empty_function()
+        for sibling in h2.next_siblings:
+            if sibling.name == 'div' and 'variant' in sibling.get('id', ''):
+                if function['api'] != '':
+                    impl['functions'].append(function.copy())
+                function = empty_function()
+                function['api'] = sibling.code.text
+            stability = get_stability(sibling, version_num)
+            if stability:
+                function['stability'].append(stability)
+            if sibling.name == 'h2': # Exit when out of scope
+                if function['api'] != '':
+                    impl['functions'].append(function.copy())
+                impl_list.append(impl.copy())
+                return impl_list
+
+    for sibling in h2.next_siblings:
+        if sibling.name == 'h2':
+            return impl_list
+        elif sibling.name == 'div':
+            # We handle `trait` data type seperately as they are not listed in `details`
+            if version_num == 52 and sibling.get('class', [''])[0] == 'methods':
+                functions = parse_html_div_items(sibling, version_num)
+                if functions:
+                    impl['functions'] = functions
+                    impl_list.append(impl.copy())
+                    continue
+            details_collapsed = is_details_collapsed(sibling, version_num)
+            if details_collapsed == 'unknown':
+                continue
+            if details_collapsed == 'div_div_code':
+                functions = parse_html_div_items(sibling, version_num, 'div')
+                if functions:
+                    impl['functions'] = functions
+                    impl_list.append(impl.copy())
+                    continue
+            for div_item in sibling.find_all(recursive = False):
+                if div_item.name == 'details':
+                    if details_collapsed == 'collapsed':
+                        impl = parse_html_detail_impl_items(div_item, version_num)
+                        if impl:
+                            impl_list.append(impl.copy())
+                    else:
+                        function = parse_single_detail_function(div_item, version_num)
+                        if function:
+                            impl['functions'].append(function.copy())
+                elif div_item.name == 'h3':
+                    print('h3 along with details in div', div_item.text)
+                    impl = empty_impl()
+                    if not div_item.code:
+                        print(div_item.text)
+                    impl['impl'] = get_api(div_item, version_num)
+                    impl_list.append(impl.copy())
+            if details_collapsed == 'notcollapsed':
+                    impl_list.append(impl.copy())
+                    impl = empty_impl()
+        elif sibling.name == 'details':
+            impl = parse_html_detail_impl_items(sibling, version_num)
+            if impl:
+                impl_list.append(impl.copy())
+    return impl_list
+
+
+
+
+
 # Since 1.49.0, `stability` items are stored in `div` with class `stab unstable`
-# From 1.52.0, impls are not stored in `h3` but `details` instead. Other formats change, too.
+# Since 1.52.0, impls are not stored in `h3` but `details` instead. Other formats change, too.
 def parse_html_h2items(h2, version_num) -> list:
     '''
     Parse items under h2, including `Methods`, `Trait Implementations`, etc.
@@ -394,7 +598,10 @@ def parse_html_h2items(h2, version_num) -> list:
     #     assert h3_start.name == 'div', 'only h3 or div can follow h2, but find' + h3_start
     #     impl['functions'] fn ne<I>(self, other: I) -> bool = parse_html_div_items(sibling)
     #     impl_list.append(impl)
-
+    if version_num >= 52:
+        impl_list = parse_html_h2items_details(h2, version_num)
+        if len(impl_list) != 0:
+            return impl_list
     impl = empty_impl()
     impl_list = list()
     for sibling in h2.next_siblings:
@@ -411,12 +618,12 @@ def parse_html_h2items(h2, version_num) -> list:
         elif sibling.name == 'div':
             # Collapsed impls are in `div` list.
             if version_num >= 21 and impl['impl'] == '' and is_h3h4_collapsed(sibling):
-                return parse_h3h4_indiv(sibling)
+                return parse_h3h4_indiv(sibling, version_num)
             if version_num >= 38 and impl['impl'] == '' and is_fields_indiv(sibling):
-                impl['functions'] =  parse_fields_indiv(sibling)
+                impl['functions'] =  parse_fields_indiv(sibling, version_num)
                 impl_list.append(impl.copy())
                 return impl_list
-            functions = parse_html_div_items(sibling)
+            functions = parse_html_div_items(sibling, version_num)
             if functions:
                 impl['functions'] = functions
                 impl_list.append(impl.copy())
@@ -495,7 +702,10 @@ def parse_html_inband(soup, version_num):
     submodule['path'] = path
     submodule['api'] = api
     # Stabilibty
-    head = soup.find('h1', class_='fqn')
+    if version_num >= 58:
+        head = soup.find('div', class_='main-heading')
+    else:
+        head = soup.find('h1', class_='fqn')
     for sibling in head.next_siblings:
         if sibling.name == 'h2':
             break
@@ -534,7 +744,10 @@ def parse_html(html_path, version_num):
     # Parse all h2 items if submodules
     if not is_module:
         inner_list = list()
-        head = soup.find('h1', class_='fqn')
+        if version_num >= 58:
+            head = soup.find('div', class_='main-heading')
+        else:
+            head = soup.find('h1', class_='fqn')
         for sibling in head.next_siblings:
             if sibling.name == 'h2':
                 inner = empty_item()
@@ -547,12 +760,14 @@ def parse_html(html_path, version_num):
     collected_unstable_count = get_unstable_count(submodule)
     if version_num <= 48:
         stability_items = soup.find_all('div', class_='stability')
+    elif version_num >= 61:
+        stability_items = soup.find_all('span', class_='item-info')
     else:
         stability_items = soup.find_all('div', class_='item-info')
     html_unstable_count = len(stability_items)
     if collected_unstable_count != html_unstable_count:
         # print(html_path, 'misses unstable items' + str(submodule))
-        print('misses unstable items' + str(submodule))
+        print('misses unstable items', collected_unstable_count, html_unstable_count)
     return (submodule, collected_unstable_count, html_unstable_count)
 
 
@@ -570,7 +785,11 @@ def get_crates(doc_directory):
     html = browser.page_source
     browser.quit()
     soup = BeautifulSoup(html, 'html.parser')
-    return soup.find_all('a', class_='crate')
+    crates = soup.find_all('a', class_='crate')
+    crates_string = list()
+    for crate in crates:
+        crates_string.append(crate.string)
+    return crates_string
 
 
 
@@ -676,13 +895,15 @@ def parse_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
         # Find root html: std/index.html
         current_directory = os.getcwd() + '/'
         doc_directory = current_directory + version_num + '/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html'
-        crates_item = get_crates(doc_directory)
+        if i == 52: # This is exception
+            crates_string = ['alloc', 'core', 'proc_macro', 'std']
+        else:
+            crates_string = get_crates(doc_directory)
 
         # Find all html
         total_unstable_collected = 0
         total_unstable_exist = 0
-        for crate in crates_item:
-            crate = crate.string
+        for crate in crates_string:
             if crate == 'test':
                 continue
             crate_directory = doc_directory + '/' + crate
@@ -693,6 +914,14 @@ def parse_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
                 (submodule, collected_unstable_count, html_unstable_count) = tuples
                 total_unstable_collected += collected_unstable_count
                 total_unstable_exist += html_unstable_count
+                # Store submodule data into json
+                root_directory = file_name.split('rust-docs/share/doc/rust/html')[0]
+                relative_directory = file_name.split('rust-docs/share/doc/rust/html')[1]
+                json_file_path = root_directory + 'json_submodule' + relative_directory + '.json'
+                print(json_file_path)
+                os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
+                with open(json_file_path, 'w+') as file:
+                    json.dump(submodule, file)
                 # test_div_types(file_name)
                 # test_stab_items(file_name)
                 # print(stab_set)
@@ -711,6 +940,10 @@ if sys.argv[1] == 'complete':
     parse_all_docs()
 elif sys.argv[1] == 'complete_selected':
     parse_all_docs(int(sys.argv[2]), int(sys.argv[3]))
+elif sys.argv[1] == 'test_serial':
+    submodule = parse_html(sys.argv[2], int(sys.argv[3]))[0]
+    with open('test_serial.json', 'w') as file:
+        json.dump(submodule, file)
 else:
     print_pretty(parse_html(sys.argv[1], int(sys.argv[2]))[0])
 
