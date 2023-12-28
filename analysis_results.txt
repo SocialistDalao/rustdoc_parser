@@ -129,3 +129,167 @@ Version 59 API Count 71748 Same 58388 Modify 12206 Removed  1154 New 10099 True 
 Version 60 API Count 71973 Same 70969 Modify    17 Removed   987 New  1379 True Modify    17 True Removed   689 True New  1282
 Version 61 API Count 72618 Same 58106 Modify  2490 Removed 12022 New  1632 True Modify  2479 True Removed  9182 True New  1771
 Version 62 API Count 72501 Same 59232 Modify  2642 Removed 10627 New 11905 True Modify  2640 True Removed  9206 True New  9559
+
+
+
+
+Version 32 API Count 43870 Same 38815 Modify    37 Removed  5018 New    -1
+Removed API Count {'Blanket Implementations': 2487, 'Trait Implementations': 2344, 'Methods': 121, 'Auto Trait Implementations': 26, 'Auto implementors': 18, 'Required methods': 13, 'Provided methods': 5, 'Implementations on Foreign Types': 2, 'Variants': 2}
+New API Count (In old submodule) {'Trait Implementations': 3045, 'Blanket Implementations': 2308, 'Implementations on Foreign Types': 367, 'Methods': 127, 'Auto implementors': 50, 'Provided methods': 8, 'Required methods': 3, 'Methods from Deref<Target = [T]>': 3, 'Methods from Deref<Target = str>': 1}
+New Module Count 72 New API Count 983
+Version 33 API Count 45741 Same 44366 Modify   262 Removed  1113 New  6889
+Removed API Count {'Trait Implementations': 1078, 'Methods': 12, 'Fields': 6, 'Auto implementors': 6, 'Auto Trait Implementations': 6, 'Blanket Implementations': 3, 'Associated Types': 2}
+New API Count (In old submodule) {'Trait Implementations': 1283, 'Implementations on Foreign Types': 47, 'Methods': 41, 'Blanket Implementations': 13, 'Auto implementors': 8, 'Provided methods': 5, 'Methods from Deref<Target = [u8]>': 3, 'Methods from Deref<Target = [T]>': 3, 'Auto Trait Implementations': 2, 'Variants (Non-exhaustive)': 1}
+New Module Count 25 New API Count 28
+Version 34 API Count 46056 Same 38732 Modify   366 Removed  6958 New  1428
+Removed API Count {'Blanket Implementations': 6379, 'Implementations on Foreign Types': 349, 'Methods from Deref<Target = [u8]>': 113, 'Trait Implementations': 52, 'Methods': 28, 'Auto implementors': 19, 'Auto Trait Implementations': 17, 'Provided methods': 1}
+New API Count (In old submodule) {'Blanket Implementations': 6325, 'Implementations on Foreign Types': 951, 'Auto implementors': 64, 'Methods': 25, 'Trait Implementations': 10, 'Auto Trait Implementations': 10}
+New Module Count 1089 New API Count 1217
+Version 35 API Count 47694 Same 45835 Modify   122 Removed  1737 New  8596
+Removed API Count {'Implementations on Foreign Types': 896, 'Trait Implementations': 810, 'Methods': 12, 'Auto implementors': 6, 'Auto Trait Implementations': 6, 'Blanket Implementations': 3, 'Associated Types': 2, 'Required methods': 2}
+New API Count (In old submodule) {'Auto Trait Implementations': 1604, 'Auto implementors': 1437, 'Trait Implementations': 822, 'Methods': 33, 'Implementations on Foreign Types': 10, "Methods from Deref<Target = VaListImpl<'f>>": 6, 'Associated Types': 2, 'Provided methods': 2}
+New Module Count 22 New API Count 43
+Version 36 API Count 49912 Same 48026 Modify   377 Removed  1509 New  3955
+Removed API Count {'Trait Implementations': 1347, 'Auto Trait Implementations': 86, 'Auto implementors': 55, 'Methods': 10, 'Required methods': 5, 'Provided methods': 3, 'Associated Types': 2, 'Implementations on Foreign Types': 1}
+New API Count (In old submodule) {'Trait Implementations': 1321, 'Auto Trait Implementations': 86, 'Auto implementors': 53, 'Methods': 42, 'Blanket Implementations': 7, 'Methods from Deref<Target = [u8]>': 6, 'Provided methods': 4, 'Implementations on Foreign Types': 4, 'Required methods': 3, 'Methods from Deref<Target = [T]>': 3}
+New Module Count 98 New API Count 8
+
+Version 44 API Count 54083 Same 53626 Modify   441 Removed    16 New    -1
+Removed API Count {'Trait Implementations': 16}
+New API Count (In old submodule) {'Trait Implementations': 80, 'Implementations': 16, 'Auto implementors': 7, 'Implementations on Foreign Types': 7, 'Methods from Deref<Target = [u8]>': 6, 'Methods from Deref<Target = [T]>': 3}
+New Module Count 25 New API Count 44
+Version 45 API Count 54225 Same 46206 Modify  6457 Removed  1562 New   158
+Removed API Count {'Trait Implementations': 1316, 'Blanket Implementations': 102, 'Auto Trait Implementations': 43, 'Auto implementors': 34, 'Implementations': 33, 'Implementations on Foreign Types': 16, 'Variants': 12, 'Fields': 6}
+New API Count (In old submodule) {'Trait Implementations': 1243, 'Implementations on Foreign Types': 992, 'Auto implementors': 62, 'Implementations': 55, 'Auto Trait Implementations': 10, 'Provided methods': 6, 'Blanket Implementations': 3, 'Methods from Deref<Target = [u8]>': 2, 'Methods from Deref<Target = str>': 2, 'Methods from Deref<Target = [T]>': 1}
+New Module Count 374 New API Count 980
+Version 46 API Count 56014 Same 54384 Modify   214 Removed  1416 New  3351
+Removed API Count {'Implementations on Foreign Types': 1117, 'Trait Implementations': 138, 'Blanket Implementations': 62, 'Implementations': 41, 'Auto Trait Implementations': 31, 'Auto implementors': 26, 'Variants': 1}
+New API Count (In old submodule) {'Trait Implementations': 791, 'Implementations': 93, 'Auto implementors': 67, 'Auto Trait Implementations': 7, 'Implementations on Foreign Types': 5, 'Provided methods': 4, 'Methods from Deref<Target = [u8]>': 3, 'Blanket Implementations': 3, 'Methods from Deref<Target = [T]>': 2, 'Variants': 1}
+New Module Count 1802 New API Count 1115
+Version 47 API Count 56684 Same 55981 Modify    90 Removed   613 New  2086
+Removed API Count {'Trait Implementations': 375, 'Blanket Implementations': 137, 'Implementations': 39, 'Auto Trait Implementations': 31, 'Auto implementors': 26, 'Variants (Non-exhaustive)': 4, 'Implementations on Foreign Types': 1}
+New API Count (In old submodule) {'Trait Implementations': 1145, 'Implementations': 148, 'Auto implementors': 20, 'Auto Trait Implementations': 14, 'Methods from Deref<Target = [u8]>': 6, 'Methods from Deref<Target = [T]>': 5, 'Variants (Non-exhaustive)': 4, 'Implementations on Foreign Types': 4, 'Provided methods': 2}
+New Module Count 1491 New API Count 100
+Version 48 API Count 57514 Same 52179 Modify  1679 Removed  3656 New  1443
+Removed API Count {'Trait Implementations': 3414, 'Implementations': 148, 'Auto Trait Implementations': 42, 'Auto implementors': 25, 'Provided methods': 15, 'Required methods': 6, 'Implementations on Foreign Types': 6}
+New API Count (In old submodule) {'Trait Implementations': 3468, 'Implementations': 196, 'Auto implementors': 60, 'Auto Trait Implementations': 42, 'Implementations on Foreign Types': 9, 'Methods from Deref<Target = [u8]>': 3, 'Methods from Deref<Target = [T]>': 2}
+New Module Count 1360 New API Count 360
+Version 49 API Count 57993 Same 56170 Modify  1259 Removed   564 New  4135
+Removed API Count {'Trait Implementations': 354, 'Implementations': 163, 'Auto Trait Implementations': 19, 'Auto implementors': 16, 'Provided methods': 7, 'Implementations on Foreign Types': 3, 'Required methods': 2}
+New API Count (In old submodule) {'Trait Implementations': 1060, 'Implementations': 223, 'Auto implementors': 57, 'Auto Trait Implementations': 19, 'Methods from Deref<Target = [u8]>': 9, 'Provided methods': 6, 'Methods from Deref<Target = [T]>': 6, 'Required methods': 5, 'Implementations on Foreign Types': 5}
+New Module Count 22 New API Count 958
+Version 50 API Count 59772 Same 58518 Modify  1166 Removed    88 New  2343
+Removed API Count {'Trait Implementations': 70, 'Auto implementors': 5, 'Implementations': 5, 'Implementations on Foreign Types': 3, 'Provided methods': 2, 'Auto Trait Implementations': 2, 'Associated Types': 1}
+New API Count (In old submodule) {'Trait Implementations': 143, 'Implementations': 28, 'Auto implementors': 25, 'Implementations on Foreign Types': 7, 'Auto Trait Implementations': 6, 'Methods from Deref<Target = Path>': 1, 'Associated Types': 1, 'Required methods': 1}
+New Module Count 50 New API Count 466
+Version 51 API Count 60357 Same 47111 Modify   415 Removed 12831 New   673
+Removed API Count {'Trait Implementations': 8239, 'Implementations': 3564, 'Blanket Implementations': 866, 'Methods from Deref<Target = [u8]>': 62, 'Methods from Deref<Target = [T]>': 38, 'Methods from Deref<Target = str>': 24, 'Implementations on Foreign Types': 15, 'Fields': 14, 'Required methods': 4, 'Methods from Deref<Target = Path>': 3, 'Methods from Deref<Target = CStr>': 2}
+New API Count (In old submodule) {'Trait Implementations': 7255, 'Blanket Implementations': 866, 'Methods from Deref<Target = [u8]>': 64, 'Methods from Deref<Target = [T]>': 39, 'Implementations on Foreign Types': 27, 'Methods from Deref<Target = str>': 24, 'Fields': 18, 'Auto implementors': 12, 'Methods from Deref<Target = Path>': 3, 'Variants (Non-exhaustive)': 2, 'Methods from Deref<Target = CStr>': 2}
+New Module Count 3096 New API Count 195
+Version 52 API Count 56002 Same 50690 Modify  3015 Removed  2297 New  8476
+Removed API Count {'Blanket Implementations': 885, 'Trait Implementations': 427, 'Required methods': 302, 'Provided methods': 257, 'Methods from Deref<Target = [u8]>': 157, 'Methods from Deref<Target = [T]>': 105, 'Methods from Deref<Target = str>': 68, 'Associated Types': 33, 'Methods from Deref<Target = Path>': 30, 'Methods from Deref<Target = OsStr>': 11, 'Auto implementors': 8, 'Auto Trait Implementations': 8, 'Methods from Deref<Target = CStr>': 5, 'Implementations on Foreign Types': 1}
+New API Count (In old submodule) {'Implementations': 3844, 'Trait Implementations': 1402, 'Blanket Implementations': 864, 'Required methods': 118, 'Provided methods': 98, 'Implementations on Foreign Types': 65, 'Associated Types': 26, 'Auto implementors': 20, 'Fields': 9, 'Methods from Deref<Target = [u8]>': 8, 'Methods from Deref<Target = [T]>': 4}
+New Module Count 3471 New API Count 146
+Version 53 API Count 60258 Same 45365 Modify    94 Removed 14799 New  6553
+Removed API Count {'Trait Implementations': 7466, 'Auto Trait Implementations': 3379, 'Auto implementors': 2876, 'Implementations': 416, 'Implementations on Foreign Types': 379, 'Required methods': 118, 'Provided methods': 98, 'Associated Types': 26, 'Blanket Implementations': 21, 'Fields': 8, 'Methods from Deref<Target = [u8]>': 8, 'Methods from Deref<Target = [T]>': 4}
+New API Count (In old submodule) {'Trait Implementations': 7495, 'Implementations': 450, 'Required methods': 295, 'Provided methods': 261, 'Methods from Deref<Target = [u8]>': 157, 'Methods from Deref<Target = [T]>': 105, 'Methods from Deref<Target = str>': 68, 'Implementations on Foreign Types': 44, 'Methods from Deref<Target = Path>': 31, 'Associated Types': 27, 'Variants (Non-exhaustive)': 21, 'Methods from Deref<Target = OsStr>': 11, 'Fields': 5, 'Methods from Deref<Target = CStr>': 5, 'Variants': 2}
+New Module Count 13 New API Count 1
+Version 54 API Count 54404 Same 54127 Modify   139 Removed   138 New  8945
+Removed API Count {'Trait Implementations': 87, 'Implementations': 45, 'Variants': 6}
+New API Count (In old submodule) {'Trait Implementations': 184, 'Implementations': 97, 'Tuple Fields': 87, 'Variants': 63, 'Implementations on Foreign Types': 33, 'Methods from Deref<Target = [u8]>': 16, 'Methods from Deref<Target = [T]>': 9, 'Blanket Implementations': 6, 'Fields': 5, 'Methods from Deref<Target = Path>': 1, 'Methods from Deref<Target = CStr>': 1, 'Methods from Deref<Target = str>': 1}
+New Module Count 36 New API Count 3395
+Version 55 API Count 58020 Same 53652 Modify  2362 Removed  2006 New  3754
+Removed API Count {'Trait Implementations': 1956, 'Implementations': 27, 'Blanket Implementations': 12, 'Provided methods': 7, 'Fields': 3, 'Implementations on Foreign Types': 1}
+New API Count (In old submodule) {'Trait Implementations': 1976, 'Implementations on Foreign Types': 91, 'Implementations': 81, 'Tuple Fields': 54, 'Methods from Deref<Target = [T]>': 24, 'Methods from Deref<Target = [u8]>': 20, 'Variants': 11, 'Methods from Deref<Target = str>': 8, 'Provided methods': 7, 'Fields': 5, 'Methods from Deref<Target = CStr>': 1}
+New Module Count 395 New API Count 1777
+Version 56 API Count 59874 Same 59636 Modify    24 Removed   214 New  3860
+Removed API Count {'Variants': 119, 'Variants (Non-exhaustive)': 75, 'Trait Implementations': 7, 'Implementations': 5, 'Implementations on Foreign Types': 4, 'Fields': 3, 'Required methods': 1}
+New API Count (In old submodule) {'Trait Implementations': 322, 'Tuple Fields': 300, 'Implementations': 61, 'Implementations on Foreign Types': 43, 'Methods from Deref<Target = [u8]>': 25, 'Methods from Deref<Target = [T]>': 17, 'Variants': 11, 'Fields': 8, 'Methods from Deref<Target = CStr>': 1, 'Required methods': 1, 'Provided methods': 1, 'Methods from Deref<Target = str>': 1}
+New Module Count 1797 New API Count 7687
+Version 57 API Count 67695 Same 61515 Modify   474 Removed  5706 New  8035
+Removed API Count {'Trait Implementations': 5565, 'Implementations': 113, 'Tuple Fields': 18, 'Blanket Implementations': 9, 'Provided methods': 1}
+New API Count (In old submodule) {'Trait Implementations': 690, 'Tuple Fields': 306, 'Implementations': 139, 'Implementations on Foreign Types': 29, 'Methods from Deref<Target = [u8]>': 19, 'Variants': 13, 'Methods from Deref<Target = [T]>': 11, 'Fields': 7, 'Provided methods': 4, 'Methods from Deref<Target = CStr>': 1, 'Methods from Deref<Target = str>': 1}
+New Module Count 281 New API Count 69
+Version 58 API Count 62847 Same 58249 Modify  3400 Removed  1198 New   858
+Removed API Count {'Trait Implementations': 551, 'Blanket Implementations': 498, 'Variants': 67, 'Implementations on Foreign Types': 37, 'Implementations': 33, 'Methods from Deref<Target = [u8]>': 3, 'Methods from Deref<Target = [T]>': 3, 'Associated Types': 2, 'Required methods': 2, 'Provided methods': 2}
+New API Count (In old submodule) {'Trait Implementations': 1696, 'Implementations on Foreign Types': 710, 'Blanket Implementations': 456, 'Tuple Fields': 288, 'Implementations': 143, 'Methods from Deref<Target = [u8]>': 19, 'Methods from Deref<Target = [T]>': 10, 'Fields': 7, 'Methods from Deref<Target = str>': 3, 'Provided methods': 2, 'Methods from Deref<Target = CStr>': 1}
+New Module Count 162 New API Count 231
+Version 59 API Count 64825 Same 62609 Modify  1066 Removed  1150 New  3176
+Removed API Count {'Blanket Implementations': 464, 'Methods from Deref<Target = [u8]>': 179, 'Implementations': 146, 'Methods from Deref<Target = [T]>': 132, 'Trait Implementations': 94, 'Methods from Deref<Target = str>': 77, 'Methods from Deref<Target = Path>': 32, 'Methods from Deref<Target = OsStr>': 11, "Methods from Deref<Target = VaListImpl<'f>>": 6, 'Methods from Deref<Target = CStr>': 5, 'Associated Types': 4}
+New API Count (In old submodule) {'Trait Implementations': 538, 'Blanket Implementations': 464, 'Implementations': 382, 'Tuple Fields': 288, 'Fields': 7, 'Associated Types': 4, 'Implementations on Foreign Types': 4, 'Provided methods': 2, 'Required methods': 1}
+New Module Count 63 New API Count 42
+Version 60 API Count 65036 Same 64263 Modify    17 Removed   756 New  1361
+Removed API Count {'Trait Implementations': 389, 'Implementations': 296, 'Blanket Implementations': 67, 'Implementations on Foreign Types': 4}
+New API Count (In old submodule) {'Tuple Fields': 722, 'Trait Implementations': 343, 'Implementations': 313, 'Implementations on Foreign Types': 59, 'Fields': 38, 'Provided Methods': 4}
+New Module Count 17 New API Count 296
+Version 61 API Count 65690 Same 53833 Modify  2490 Removed  9367 New  1410
+Removed API Count {'Trait Implementations': 8103, 'Implementations on Foreign Types': 909, 'Implementations': 285, 'Blanket Implementations': 63, 'Provided Methods': 5, 'Fields': 2}
+New API Count (In old submodule) {'Trait Implementations': 8566, 'Implementations': 341, 'Tuple Fields': 288, 'Fields': 26, 'Provided Methods': 7, 'Blanket Implementations': 6, 'Required Methods': 1}
+New Module Count 170 New API Count 330
+Version 62 API Count 65509 Same 53661 Modify  2642 Removed  9206 New  9186
+Removed API Count {'Trait Implementations': 8672, 'Implementations': 528, 'Provided Methods': 6}
+New API Count (In old submodule) {'Trait Implementations': 6831, 'Tuple Fields': 288, 'Implementations': 283, 'Blanket Implementations': 67, 'Fields': 24, 'Provided Methods': 6}
+New Module Count 37 New API Count 236
+
+3-63
+Unstable   API Count   598 Same     0 Modify     0 Removed     0 New     0 Late Unstable     0 Stabalized     0 Change RUF     0
+Unstable   API Count   544 Same   491 Modify    19 Removed     0 New    34 Late Unstable     0 Stabalized    88 Change RUF     3
+Unstable   API Count   555 Same   384 Modify    16 Removed     2 New   155 Late Unstable     0 Stabalized    47 Change RUF    10
+Unstable   API Count   592 Same   480 Modify    23 Removed     0 New    89 Late Unstable     0 Stabalized    51 Change RUF    21
+Unstable   API Count   604 Same   522 Modify    13 Removed    14 New    69 Late Unstable     0 Stabalized    43 Change RUF     0
+Unstable   API Count   684 Same   504 Modify    22 Removed     2 New   158 Late Unstable     0 Stabalized    66 Change RUF     6
+Unstable   API Count   903 Same   666 Modify     8 Removed     0 New   229 Late Unstable    27 Stabalized    10 Change RUF     0
+Unstable   API Count   983 Same   485 Modify     0 Removed   298 New   498 Late Unstable   179 Stabalized   103 Change RUF     0
+Unstable   API Count  1126 Same   950 Modify     0 Removed     7 New   176 Late Unstable     0 Stabalized     9 Change RUF     0
+Unstable   API Count  1753 Same  1099 Modify     0 Removed     1 New   654 Late Unstable     0 Stabalized    26 Change RUF     0
+Unstable   API Count  1770 Same  1723 Modify     0 Removed     8 New    47 Late Unstable     0 Stabalized     4 Change RUF     1
+Unstable   API Count  1468 Same  1174 Modify    21 Removed     0 New   273 Late Unstable     0 Stabalized   550 Change RUF    17
+Unstable   API Count  1014 Same   941 Modify    23 Removed     2 New    50 Late Unstable     4 Stabalized    31 Change RUF   964
+Unstable   API Count  1262 Same  1009 Modify     3 Removed     2 New   250 Late Unstable     4 Stabalized     0 Change RUF     0
+Unstable   API Count  1319 Same   972 Modify    87 Removed   137 New   260 Late Unstable     4 Stabalized    41 Change RUF     0
+Unstable   API Count  1596 Same  1271 Modify     2 Removed    26 New   323 Late Unstable     0 Stabalized    10 Change RUF     0
+Unstable   API Count  2296 Same  1371 Modify    11 Removed   165 New   914 Late Unstable    33 Stabalized    27 Change RUF    26
+Unstable   API Count  2322 Same  2265 Modify     5 Removed     0 New    52 Late Unstable     4 Stabalized    26 Change RUF     0
+Unstable   API Count  2155 Same  1892 Modify     4 Removed     0 New   259 Late Unstable     4 Stabalized   415 Change RUF     0
+Unstable   API Count  2475 Same  1988 Modify    12 Removed     9 New   475 Late Unstable     4 Stabalized     0 Change RUF     0
+Unstable   API Count  2478 Same  2452 Modify     1 Removed    18 New    25 Late Unstable     4 Stabalized     4 Change RUF     0
+Unstable   API Count  2546 Same  2412 Modify    35 Removed    30 New    99 Late Unstable     4 Stabalized     1 Change RUF    14
+Unstable   API Count  8219 Same  2474 Modify     4 Removed    10 New  5741 Late Unstable     4 Stabalized    38 Change RUF     4
+Unstable   API Count  9115 Same  5224 Modify   699 Removed   424 New  3192 Late Unstable     8 Stabalized  1138 Change RUF    19
+Unstable   API Count  8991 Same  8355 Modify   272 Removed    63 New   364 Late Unstable     0 Stabalized   376 Change RUF   162
+Unstable   API Count  5042 Same  1972 Modify     5 Removed   904 New  3065 Late Unstable     0 Stabalized   316 Change RUF    35
+Unstable   API Count  5954 Same  4672 Modify     3 Removed    14 New  1279 Late Unstable     1 Stabalized   281 Change RUF     0
+Unstable   API Count  6057 Same  5611 Modify    18 Removed    47 New   428 Late Unstable     0 Stabalized     4 Change RUF     1
+Unstable   API Count  6161 Same  5716 Modify   326 Removed    15 New   119 Late Unstable     0 Stabalized     0 Change RUF    21
+Unstable   API Count  6696 Same  5901 Modify   194 Removed    12 New   601 Late Unstable     0 Stabalized    43 Change RUF     0
+Unstable   API Count  3491 Same  2325 Modify    10 Removed  2431 New  1156 Late Unstable     0 Stabalized  1793 Change RUF     4
+Unstable   API Count  3617 Same  3407 Modify    16 Removed    24 New   194 Late Unstable     0 Stabalized    44 Change RUF     0
+Unstable   API Count  3285 Same  3125 Modify    14 Removed    50 New   146 Late Unstable     0 Stabalized   404 Change RUF     4
+Unstable   API Count  3016 Same  2915 Modify     4 Removed   128 New    97 Late Unstable     0 Stabalized   236 Change RUF     0
+Unstable   API Count  3678 Same  2658 Modify   313 Removed    27 New   707 Late Unstable     0 Stabalized    16 Change RUF     4
+Unstable   API Count  4687 Same  3644 Modify    18 Removed     0 New  1025 Late Unstable     0 Stabalized    10 Change RUF     0
+Unstable   API Count  4737 Same  4656 Modify     0 Removed    16 New    81 Late Unstable     0 Stabalized    15 Change RUF     0
+Unstable   API Count  4792 Same  4711 Modify     3 Removed     4 New    78 Late Unstable     0 Stabalized    10 Change RUF     0
+Unstable   API Count  5189 Same  4714 Modify     1 Removed    55 New   474 Late Unstable     0 Stabalized     8 Change RUF     0
+Unstable   API Count  5512 Same  4956 Modify   141 Removed    63 New   415 Late Unstable     0 Stabalized     1 Change RUF     0
+Unstable   API Count  5923 Same  5266 Modify   141 Removed    72 New   516 Late Unstable     0 Stabalized    18 Change RUF     1
+Unstable   API Count  6047 Same  5772 Modify     2 Removed    61 New   273 Late Unstable     0 Stabalized    88 Change RUF     0
+Unstable   API Count  6078 Same  5639 Modify   402 Removed     0 New    37 Late Unstable     0 Stabalized     6 Change RUF     0
+Unstable   API Count  6136 Same  5252 Modify   499 Removed   286 New   385 Late Unstable     0 Stabalized    11 Change RUF     0
+Unstable   API Count  7067 Same  5886 Modify   190 Removed    38 New   991 Late Unstable     0 Stabalized     8 Change RUF     0
+Unstable   API Count  7202 Same  6951 Modify    15 Removed   101 New   236 Late Unstable     0 Stabalized     0 Change RUF     0
+Unstable   API Count  7182 Same  6095 Modify   440 Removed   526 New   647 Late Unstable     0 Stabalized   120 Change RUF     0
+Unstable   API Count  7730 Same  6133 Modify   609 Removed   400 New   988 Late Unstable     0 Stabalized    40 Change RUF     7
+Unstable   API Count  7878 Same  7032 Modify   642 Removed    33 New   204 Late Unstable     0 Stabalized    23 Change RUF     0
+Unstable   API Count  6705 Same  5715 Modify     9 Removed  2126 New   981 Late Unstable     0 Stabalized    24 Change RUF     0
+Unstable   API Count  7685 Same  5892 Modify   357 Removed   413 New  1436 Late Unstable     0 Stabalized    30 Change RUF     0
+Unstable   API Count  8027 Same  6623 Modify    19 Removed   989 New  1385 Late Unstable     0 Stabalized    53 Change RUF     0
+Unstable   API Count  7802 Same  7119 Modify   101 Removed    32 New   582 Late Unstable    10 Stabalized   775 Change RUF     3
+Unstable   API Count  8230 Same  6490 Modify   796 Removed   124 New   944 Late Unstable   712 Stabalized   388 Change RUF     3
+Unstable   API Count  8758 Same  8106 Modify     0 Removed    65 New   652 Late Unstable    18 Stabalized    59 Change RUF     4
+Unstable   API Count  9151 Same  8205 Modify   429 Removed    98 New   517 Late Unstable     1 Stabalized    22 Change RUF     4
+Unstable   API Count  9593 Same  8942 Modify    93 Removed    66 New   558 Late Unstable    12 Stabalized    35 Change RUF     3
+Unstable   API Count 10095 Same  9275 Modify    31 Removed   258 New   789 Late Unstable     1 Stabalized    29 Change RUF     3
+Unstable   API Count 10578 Same  9802 Modify     6 Removed   274 New   770 Late Unstable   448 Stabalized    13 Change RUF     3
+Unstable   API Count 10237 Same  8174 Modify   671 Removed  1028 New  1392 Late Unstable     1 Stabalized   673 Change RUF     3
+Unstable   API Count  9769 Same  7440 Modify   582 Removed  2165 New  1747 Late Unstable     3 Stabalized    50 Change RUF     3
