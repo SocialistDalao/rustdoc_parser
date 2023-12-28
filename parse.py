@@ -598,10 +598,10 @@ def parse_html_h2items(h2, version_num) -> list:
     #     assert h3_start.name == 'div', 'only h3 or div can follow h2, but find' + h3_start
     #     impl['functions'] fn ne<I>(self, other: I) -> bool = parse_html_div_items(sibling)
     #     impl_list.append(impl)
-    if version_num >= 52:
-        impl_list = parse_html_h2items_details(h2, version_num)
-        if len(impl_list) != 0:
-            return impl_list
+    # if version_num >= 52:
+    #     impl_list = parse_html_h2items_details(h2, version_num)
+    #     if len(impl_list) != 0:
+    #         return impl_list
     impl = empty_impl()
     impl_list = list()
     for sibling in h2.next_siblings:
@@ -752,7 +752,13 @@ def parse_html(html_path, version_num):
             if sibling.name == 'h2':
                 inner = empty_item()
                 inner['head'] = " ".join(sibling.text.split()) # head text contain duplicate spaces and new lines. We remove them.
-                inner['impls'] = parse_html_h2items(sibling, version_num)
+                if version_num >= 52:
+                    if inner['head'] not in ['Tuple Fields', 'Fields', 'Variants']:
+                        impl_list = parse_html_h2items_details(sibling, version_num)
+                        if len(impl_list) != 0:
+                            inner['impls'] = impl_list
+                if len(inner['impls']) == 0:
+                    inner['impls'] = parse_html_h2items(sibling, version_num)
                 inner_list.append(inner.copy())
         submodule['items'] = inner_list
 
