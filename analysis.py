@@ -47,6 +47,7 @@ def empty_api():
         'api': '',
         'stability': list(),
         'next_api_index': -1, # Index of the same abi in next doc version in the same submodule. 
+        'duration': 0, # Duration of the same abi (in versions)
     }
 
 def empty_submodule():
@@ -73,6 +74,7 @@ def analyze_stability(stability: list) -> list:
             new_stability = empty_stability()
             new_stability['ruf'] = ruf
             new_stability['status'] = 'unstable'
+            new_stability['full'] = matched_unstable
             stability_list.append(new_stability)
         # Unstable 2
         for matched_unstable in re.findall('🔬 This is a nightly-only experimental API\.\s\(\w+\)', item):
@@ -82,12 +84,13 @@ def analyze_stability(stability: list) -> list:
             new_stability = empty_stability()
             new_stability['ruf'] = ruf
             new_stability['status'] = 'unstable'
+            new_stability['full'] = matched_unstable
             stability_list.append(new_stability)
         # Unstable 3: Unstable (wait_timeout_with #27748): unsure if this API is broadly needed or what form it should take\n
         for matched_unstable in re.findall('Unstable \(\w+ #[0-9]+\)', item):
             # print('Unstable 3')
             unstable_part = re.search('\(\w+ #[0-9]+\)', matched_unstable)[0]
-            ruf = unstable_part.split(' ')[0][1:-1]
+            ruf = unstable_part.split(' ')[0][1:]
             new_stability = empty_stability()
             new_stability['ruf'] = ruf
             new_stability['status'] = 'unstable'
@@ -104,8 +107,8 @@ def analyze_stability(stability: list) -> list:
             new_stability['full'] = matched_unstable
             stability_list.append(new_stability)
         # Deprecated
-        for matched_unstable in re.findall('Deprecated since 1.[0-9]+.[0-9]+: .+\n', item):
-            since = re.search('1.[0-9]+.[0-9]+', matched_unstable)[0]
+        for matched_unstable in re.findall('Deprecated since 1.[0-9]+(?:.[0-9]+)*: .+\n', item):
+            since = re.search('1.[0-9]+(?:.[0-9]+)*', matched_unstable)[0]
             new_stability = empty_stability()
             new_stability['status'] = 'deprecated'
             new_stability['since'] = since
@@ -199,7 +202,9 @@ def is_same_api(api1: dict, api2: dict) -> bool:
     return False
 
 
-def print_removed_api_info(api_list: list, new_api_list: list):
+removed_API = []
+new_API = []
+def print_removed_api_info(current_version, api_list: list, new_api_list: list):
     '''
     Print removed API info.
     '''
@@ -207,13 +212,45 @@ def print_removed_api_info(api_list: list, new_api_list: list):
     for api in api_list:
         next_api_index = api['next_api_index']
         if next_api_index == -1:
-            print('Removed API:', api)
+            # print('Removed API:', api)
+            api['version'] = current_version
+            removed_API.append(api)
         else:
             index_set.add(next_api_index)
     for idx, api in enumerate(new_api_list):
         if idx not in index_set:
-            print('New API:', api)
+            # print('New API:', api)
+            api['version'] = current_version
+            new_API.append(api)
 
+
+def statistics_removed_api_info():
+    removed_fn_count = 0
+    removed_impl_count = 0
+    removed_type_count = 0
+    new_fn_count = 0
+    new_impl_count = 0
+    new_type_count = 0
+    for api in removed_API:
+        if 'fn ' in api['api']:
+            removed_fn_count += 1
+        elif len(api['api']) > len('impl') and api['api'][0:4] == 'impl':
+            removed_impl_count += 1
+            print('Removed API:', api)
+        elif len(api['api']) > len('type ') and api['api'][0:5] == 'type ':
+            removed_type_count += 1
+    for api in new_API:
+        if 'fn ' in api['api']:
+            new_fn_count += 1
+        elif len(api['api']) > len('impl') and api['api'][0:4] == 'impl':
+            new_impl_count += 1
+            print('New API:', api)
+        elif len(api['api']) > len('type ') and api['api'][0:5] == 'type ':
+            new_type_count += 1
+    print('Removed API Count', len(removed_API), 'New API Count', len(new_API))
+    print('Removed Function Count', removed_fn_count, 'New Function Count', new_fn_count)
+    print('Removed Impl Count', removed_impl_count, 'New Impl Count', new_impl_count)
+    print('Removed Type Count', removed_type_count, 'New Type Count', new_type_count)
 
 
 def print_new_module_info(doc:dict, doc_new:dict):
@@ -308,6 +345,13 @@ def get_stability_count(api_list: list):
     return unstable_api_count
 
 
+def is_api_deprecated(api: dict):
+    for stability in api['stability']:
+        if stability['status'] == 'deprecated':
+            return True
+    return False
+
+
 def is_api_unstable(api: dict):
     for stability in api['stability']:
         if stability['status'] == 'unstable':
@@ -329,6 +373,7 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     Connect the API evolution in different versions.
     '''
+    results = {}
     remained_api_count = 0
     remained_unstable_api_count = 0
     last_api_count = 0
@@ -377,6 +422,7 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                             # print('Error: next_api_index already set', api['submodule'], api['api'])
                             break
                         api['next_api_index'] = idx
+                        new_api['duration'] = api['duration'] + 1
             # analyze_api_evolution
             for api in api_list:
                 unstable = is_api_unstable(api)
@@ -409,7 +455,7 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                         #     # print('Old:', api)
                         #     # print('New:', next_api)
                         #     truemodify_count += 1
-            # print_removed_api_info(api_list, new_api_list)
+            print_removed_api_info(i, api_list, new_api_list)
         if index > 0:
             new_api_count = api_count - remained_api_count
             new_unstable_count = unstable_api_count - remained_unstable_api_count
@@ -438,6 +484,22 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                 'Late Unstable', '{:>5}'.format(last_late_unstable_count),
                 'Stabilized', '{:>5}'.format(last_stabalized_count),
                 'Change RUF', '{:>5}'.format(last_change_ruf_count))
+        results[i] = {
+            'Version': i,
+            'API Count': api_count,
+            'Same': last_same_count,
+            'Modify': last_modify_count,
+            'Removed': last_removed_count,
+            'New': new_api_count,
+            'Unstable API Count': unstable_api_count,
+            'Unstable Same': last_same_unstable_count,
+            'Unstable Modify': last_modify_unstable_count,
+            'Unstable Removed': last_removed_unstable_count,
+            'Unstable New': new_unstable_count,
+            'Late Unstable': last_late_unstable_count,
+            'Stabilized': last_stabalized_count,
+            'Change RUF': last_change_ruf_count
+        }
 
         last_api_count = api_count
         last_same_count = same_count
@@ -451,6 +513,8 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
         last_late_unstable_count = late_unstable_count
         last_stabalized_count = stabalized_count
         last_change_ruf_count = change_ruf_count
+
+    return results
         # if i != MAX_VERSION: 
             # classify_removed_api_info(docs[index], docs[index+1])
         # print_new_module_info(docs[index], docs[index+1])
@@ -469,6 +533,68 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
             # print('------------------')
 
 
+
+def unchaged_api_duration_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
+    '''
+    Analyze the duration of unchanged APIs.
+    '''
+    results_allapis = {}
+    results_allapis_removed = {}
+    results_allapis_unstable = {}
+    results_unstable_removed = {}
+    for i in range(MIN_VERSION, MAX_VERSION+1):
+        index = i - MIN_VERSION
+        duration_distribution = {}
+        duration_distribution_removed = {}
+        duration_distribution_unstable = {}
+        duration_distribution_unstable_removed = {}
+        for (submodule_path, plain_submodule) in docs[index].items():
+            api_list = plain_submodule['plain_apis']
+            for api in api_list:
+                duration = api['duration']
+                duration_distribution[duration] = duration_distribution.get(duration, 0) + 1
+                if api['next_api_index'] == -1:
+                    duration_distribution_removed[duration] = duration_distribution_removed.get(duration, 0) + 1
+                if is_api_unstable(api):
+                    duration_distribution_unstable[duration] = duration_distribution_unstable.get(duration, 0) + 1
+                    if api['next_api_index'] == -1:
+                        duration_distribution_unstable_removed[duration] = duration_distribution_unstable_removed.get(duration, 0) + 1
+        results_allapis[i] = distribution_summary(duration_distribution)
+        results_allapis_removed[i] = distribution_summary(duration_distribution_removed)
+        results_allapis_unstable[i] = distribution_summary(duration_distribution_unstable)
+        results_unstable_removed[i] = distribution_summary(duration_distribution_unstable_removed)
+    print('All APIs Duration Summary')
+    for (version, summary) in results_allapis.items():
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+    print('All APIs Removed Duration Summary')
+    for (version, summary) in results_allapis_removed.items():
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+    print('All Unstable APIs Duration Summary')
+    for (version, summary) in results_allapis_unstable.items():
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+    print('All Unstable APIs Removed Duration Summary')
+    for (version, summary) in results_unstable_removed.items():
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+        
+
+def distribution_summary(durations: dict):
+    '''
+    Summarize the distribution of API duration.
+    '''
+    results = {}
+    total = 0
+    total_duration = 0
+    for (duration, count) in durations.items():
+        total += count
+        total_duration += duration * count
+    if total == 0:
+        return {'average': 0, 'total': 0}
+    results['average'] = total_duration / total
+    results['total'] = total
+    return results
+        
+
+
 def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     Analyze the API evolution in different ways, aspects. (API change, Stability change, etc)
@@ -484,55 +610,126 @@ def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     print('Start Analyzing API Evolution ...')
     construct_api_binding(docs, MIN_VERSION, MAX_VERSION)
-    # for i in range(MIN_VERSION, MAX_VERSION):
-    #     index = i - MIN_VERSION
-    #     api_count = 0
-    #     same_count = 0
-    #     modify_count = 0
-    #     removed_count = 0
-    #     for (submodule_path, api_list) in docs[index].items():
-    #         api_count += len(api_list)
-    #         for api in api_list:
-    #             if api['next_api_index'] == -1:
-    #                 removed_count += 1
-    #             else:
-    #                 next_api = docs[index+1][submodule_path][api['next_api_index']]
-    #                 if is_api_same(api, next_api):
-    #                     same_count += 1
-    #                 else:
-    #                     modify_count += 1
-    #     print('Version', i, 'API Count', api_count, 'Same', same_count, 'Modify', modify_count, 'Removed', removed_count)
+    # unchaged_api_duration_analysis(docs, MIN_VERSION, MAX_VERSION)
+    # api_evolution_analysis(docs, MIN_VERSION, MAX_VERSION)
+    statistics_removed_api_info()
 
 
 # TODO: Think carefully about the algorithm of abnormal RUF lifetime.
-def analyze_ruf_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
+def api_evolution_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     Analyze the stability evolution in different ways, aspects. (Stability change, etc).
-    We define several rules to identify abnormal stability evolution.
-    1. Unstable API becomes unknown. (Some may be marked as deprecated)
-    2. Stable API becomes unstable.
-    3. Stable API changes.
-    4. We further analyze how unstable (modify, remove, new) the unstable APIs evolve.
+    Traditional Evolution:
+    1. Stabilized
+    2. Stay Unstable
+    3. Deprecated
+    4. Removed
+    Abnormal Evolution:
+    1. Change RUF
+    2. Late Unstable
+    3. Not Deprecated before Removed
     '''
-    for i in range(MIN_VERSION, MAX_VERSION+1):
+    print('API Evolution (Lifetime) Analysis ...')
+    # Do not analyze the last version. It's meaningless for lifetime analysis.
+    total = 0
+    unstable = 0
+    removed = 0
+    deprecated = 0
+    stabilized = 0
+    change_ruf = 0
+    late_unstable = 0
+    unstable_twice = 0
+    not_deprecated_before_removed = 0
+    revoked_deprecated = 0
+    for i in range(MIN_VERSION, MAX_VERSION):
         index = i - MIN_VERSION
         for (submodule_path, plain_submodule) in docs[index].items():
             api_list = plain_submodule['plain_apis']
-            unstable_api_count = 0
             for api in api_list:
-                for stability in api['stability']:
-                    if stability['status'] == 'unstable':
-                        unstable_api_count += 1
-                        break
-            if submodule_path not in docs[index+1]:
-                continue
-            new_api_list = docs[index+1][submodule_path]['plain_apis']
+                # Begin of an API. Get its lifetime.
+                if api['duration'] == 0:
+                    lifetime = [api]
+                    next_api_index = api['next_api_index']
+                    is_removed = -1
+                    for j in range(i+1, MAX_VERSION):
+                        if next_api_index == -1:
+                            is_removed = j
+                            break
+                        next_index = j - MIN_VERSION
+                        next_api = docs[next_index][submodule_path]['plain_apis'][next_api_index]
+                        next_api_index = next_api['next_api_index']
+                        lifetime.append(next_api)
+                    # Analysis: Currently only unstable
+                    results = analyze_single_api_lifetime(lifetime)
+                    total += 1
+                    if results['unstable'] != -1:
+                        unstable += 1
+                    # else:
+                    #     continue
+                    if is_removed != -1:
+                        removed += 1
+                    if results['deprecated'] != -1:
+                        deprecated += 1
+                    if results['stabilized'] != -1:
+                        stabilized += 1
+                    if results['change_ruf'] != -1:
+                        change_ruf += 1
+                    if results['late_unstable'] != -1:
+                        late_unstable += 1
+                    if results['unstable_twice'] != -1:
+                        unstable_twice += 1
+                    if results['not_deprecated_before_removed'] != -1  and is_removed != -1:
+                        not_deprecated_before_removed += 1
+                    if results['revoked_deprecated'] != -1:
+                        revoked_deprecated += 1
+    print('Total', total, 'Unstable', unstable, 'Stabilized', stabilized, 'Deprecated', deprecated, 'Removed', removed)
+    print('Change RUF', change_ruf, 'Late Unstable', late_unstable, 'Unstable Twice', unstable_twice, 'Not Deprecated Before Removed', not_deprecated_before_removed, 'Revoked Deprecated', revoked_deprecated)
 
-    
+
+                    
+
+                    
+
+def analyze_single_api_lifetime(lifetime: list):
+    results = {
+        'unstable': -1,
+        'deprecated': -1,
+        'stabilized': -1,
+        'change_ruf': -1,
+        'late_unstable': -1,
+        'unstable_twice': -1,
+        'not_deprecated_before_removed': -1,
+        'revoked_deprecated': -1,
+    }
+    for i in range(len(lifetime)-1):
+        api = lifetime[i]
+        next_api = lifetime[i+1]
+        unstable = is_api_unstable(api)
+        next_unstable = is_api_unstable(next_api)
+        if unstable:
+            results['unstable'] = i
+        if unstable and not next_unstable:
+            results['stabilized'] = i
+        if is_api_deprecated(api):
+            results['deprecated'] = i
+        # Abnormal
+        if unstable and next_unstable and not is_ruf_same(api, next_api):
+            results['change_ruf'] = i
+        if not unstable and next_unstable:
+            results['late_unstable'] = i
+            if results['unstable'] != -1:
+                results['unstable_twice'] = i
+        if not is_api_deprecated(api) and next_api['next_api_index'] == -1:
+            results['not_deprecated_before_removed'] = i 
+        if is_api_deprecated(api) and not is_api_deprecated(next_api):
+            results['revoked_deprecated'] = i
+    if not is_api_deprecated(lifetime[-1]):
+        results['not_deprecated_before_removed'] = len(lifetime) - 1
+    return results
 
 
 
-def analyze_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
+def plain_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
     '''
     Parse all rustdocs to get items data in different compiler versions.
     These data are actually Abstract Resource Tree. Through analysing AST, we can know API evolution, especially unstable API.
@@ -556,7 +753,8 @@ def analyze_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
             (submodule_path, submodule_plain) = recover_info(submodule_original)
             submodule_map[submodule_path] = submodule_plain
         docs.append(submodule_map)
-    analyze_api_evolution(docs, MIN_VERSION, MAX_VERSION)
+    with open('all_docs.json', 'w') as file:
+        json.dump(docs, file)
     # for doc in docs:
     #     for (submodule_path, api_list) in doc.items():
     #         print('Submodule:', submodule_path)
@@ -568,10 +766,20 @@ def analyze_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
 
 
 #TODO: Anylize the API evolution in different ways, aspects. (API change, Stability change, etc)
+if sys.argv[1] == 'plain_apis':
+    plain_all_docs()
+if sys.argv[1] == 'plain_apis_selected':
+    plain_all_docs(int(sys.argv[2]), int(sys.argv[3]))
 if sys.argv[1] == 'complete':
-    analyze_all_docs()
+    with open('all_docs.json', 'r') as file:
+        docs = json.load(file)
+    analyze_api_evolution(docs, 1, 63)
 if sys.argv[1] == 'complete_selected':
-    analyze_all_docs(int(sys.argv[2]), int(sys.argv[3]))
+    with open('all_docs.json', 'r') as file:
+        docs = json.load(file)
+    min = int(sys.argv[2])
+    max = int(sys.argv[3])
+    analyze_api_evolution(docs[min-1:max], min, max)
 # with open('test_serial.json', 'r') as file:
 #     submodule = json.load(file)
 # print(*recover_info(submodule)[1], sep='\n')
