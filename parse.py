@@ -200,16 +200,16 @@ def get_stability(item, version_num) -> str:
 # Sometimes it includes `\u24d8` which is followed by notable-trait info, useless in our study.
 def get_api(item, version_num = 0) -> str:
     if version_num >= 52:
-        if item and item.h3:
-            if item.h3.code:
-                return item.h3.code.text
-            return item.h3.text
+        if item and item.h3 and item.h3.code:
+            return item.h3.code.text
         elif item and item.h4:
             if item.h4.code:
                 return item.h4.code.text
             return item.h4.text
         elif item and item.code:
             return item.code.text
+        elif item and item.h3:
+            return item.h3.text
         else:
             # print('cannot find api', item.text)
             return ''
@@ -461,12 +461,12 @@ def parse_html_detail_impl_items(detail, version_num) -> dict:
     for possible_div in detail.find_all('div', recursive = False):
         if version_num == 53:
             for inner_div in possible_div.find_all('div', recursive = False):
-                print(inner_div.text)
+                # print(inner_div.text)
                 function = parse_single_detail_function(inner_div, version_num)
                 if function:
                     impl['functions'].append(function.copy())
         for inner_detail in possible_div.find_all('details', recursive = False):
-            print(inner_detail.name)
+            # print(inner_detail.name)
             if inner_detail.find('details', recursive = False):
                 for hidden_detail in inner_detail.find_all('details', recursive = False):
                     function = parse_single_detail_function(hidden_detail, version_num)
@@ -940,7 +940,7 @@ def parse_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
 # test_html_pre_types()
 # parse_all_docs()
 # print(div_class_set)
-# print_pretty(parse_html('/home/loancold/Projects/rustdoc_parser/1.38.0/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html/alloc/str/pattern/enum.SearchStep.html', 38))
+# print_pretty(parse_html('/home/loancold/Projects/rustdoc_parser/1.52.0/rust-docs-nightly-x86_64-unknown-linux-gnu/rust-docs/share/doc/rust/html/core/result/struct.Iter.html', 52))
 import sys
 if sys.argv[1] == 'complete':
     parse_all_docs()
