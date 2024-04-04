@@ -10,7 +10,7 @@ extern crate rustc_session;
 extern crate rustc_span;
 extern crate rustc_lexer;
 
-use std::{path, process, str};
+use std::{path, process, str, vec};
 
 use rustc_errors::registry;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,13 +20,25 @@ use rustc_lexer::tokenize;
 
 extern crate syn;
 
-use syn::{Item, ReturnType, Type, parse_quote};
+use syn::{parse_quote, Item, ItemImpl, ReturnType, Type};
+use std::fs::File;
+use std::io::prelude::*;
+
+mod json;
+use json::{read_json, write_json};
 
 fn main() {
-    let input = "fn hello()";
-    for token in tokenize(input) {
-        println!("{:?}", token);
-    }
+    // let input = "fn hello()";
+    // for token in tokenize(input) {
+    //     println!("{:?}", token);
+    // }
+
+    test_single_func_parse();
+    // test_parse_compare();
+
+}
+
+fn test_full_parse(){
     let out = process::Command::new("rustc")
         .arg("--print=sysroot")
         .current_dir(".")
@@ -45,8 +57,7 @@ fn main() {
         input: config::Input::Str {
             name: source_map::FileName::Custom("main.rs".into()),
             input: r#"
-            fn intersperse(self, separator: Self::Item) -> Intersperse<Self> where Self::Item: Clone;
-"#
+            fn intersperse(self, separator: Self::Item) -> Intersperse<Self> where Self::Item: Clone;"#
             .into(),
         },
         output_dir: None,  // Option<PathBuf>
@@ -93,74 +104,117 @@ fn main() {
             })
         });
     });
+}
 
 
+/// Things to consider:
+/// 1. Name: Impl trait name, function name, impl object name.
+/// 2. Generics: Type parameters, lifetime parameters.
+/// 3. Inputs: Function inputs.
+/// 4. Output: Function output.
+/// 
+/// Algorithm:
+/// 1. Generics are tied with name, inputs and output. 
+///     We need to first construct the relation between generics and modifiers, regardless of the name and senquence of declaration.
+/// 2. We ignore all WhereClause as it is hard to compare and can crash the comparison.
+/// 
+/// Implementation:
+/// 1. Input: Json files of all plain APIs.
+/// 2.1 Parsing: Do the plain parsing of all APIs.
+/// 2.2 Detailed Parsing: If no matching API, try to parse the API in detail. Generics and lifetime are taken into consideration.
+/// 3. Output: Overwrite the Json files with the detailed parsing.
+fn test_single_func_parse(){
+    // let api = "impl<I> Iterator for Intersperse<I> where I: Iterator, <I as Iterator>::Item: Clone, type Item = <I as Iterator>::Item{}";// `type cannot be successfully resolved
+    // let api = "impl<I> Iterator for Intersperse<I> where I: Iterator, <I as Iterator>::Item: Clone{}";
 
-    let api_sig1 = "fn add(a: i32, b: i32) -> i32;";
-    let api_sig2 = "fn add(a: i32, b: i32) -> i32;";
+    fn create_file(filename: &str, content: &str) {
+        let mut file = File::create(filename).expect("Failed to create file");
+        file.write_all(content.as_bytes()).expect("Failed to write to file");
+    }
+    let file1 = "output1.txt";
+    let file2 = "output2.txt";
+    // let api1 = "impl<T, '_> Iterator for Drain<'_, T>{}";
+    // let api2 = "impl<'_, T> Iterator for Drain<'_, T>{}";
+    // let api1 = "impl<T, U> Into for T where U: From<T>{}";
+    // let api2 = "impl<T, U> Into<U> for T where U: From<T>{}";
+    // let api1 = "impl<'a, F> Pattern for F where F: FnMut(char) -> bool{}";
+    // let api2 = "impl<'a, F> Pattern<'a> for F where F: FnMut(char) -> bool{}";
+    // let api1 = "impl<'a, T> Iterator for Drain<'a, T>{}";
+    // let api2 = "impl<T, '_> Iterator for Drain<'_, T>{}";
+    // let api1 = "impl<K: Ord, Q: ?Sized, V, '_> Index<&'_ Q> for BTreeMap<K, V> where K: Borrow<Q>, Q: Ord{}";
+    // let api2 = "impl<'_, K: Ord, Q: ?Sized, V> Index<&'_ Q> for BTreeMap<K, V> where K: Borrow<Q>, Q: Ord{}";
+    // let api1 = "impl<'_> Add<&'_ Wrapping<i128>> for Wrapping<i128>{}";
+    // let api2 = "impl Add<&'_ Wrapping<i128>> for Wrapping<i128>{}";
+    // let api1 = "impl<'a> Neg for &'a Wrapping<usize>{}";
+    // let api2 = "impl<'_> Neg for &'_ Wrapping<usize>{}";
+    let api1 = "type Output = Wrapping<usize>::Output;";
+    let api2 = "type Output = <Wrapping<usize> as Add<Wrapping<usize>>>::Output;";
+    // let api1_sig = parse_api(api1).unwrap();
+    // let api2_sig = parse_api(api2).unwrap();
+    // println!("Equals: {:#?}", api1_sig == api2_sig);
+    let item1:syn::Item = syn::parse_str(api1).expect("Failed to parse API signature");
+    let item2:syn::Item = syn::parse_str(api2).expect("Failed to parse API signature");
+    create_file(file1, format!("{:#?}", item1).as_str());
+    create_file(file2, format!("{:#?}", item2).as_str());
+    // println!("Equals: {:#?}", item1 == item2);
+    // println!("Equals: {:#?}", api1_sig == api2_sig);
 
-    if compare_api_signatures(api_sig1, api_sig2) {
-        println!("API signatures are equivalent");
-    } else {
-        println!("API signatures are not equivalent");
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ApiSignature {
+    pub ty: String,
+    pub name: String,
+    pub impls: Option<syn::Path>,
+    pub generics: Vec<Type>,
+    pub inputs: Vec<String>,
+    pub output: String,
+}
+
+impl ApiSignature {
+    pub fn new() -> Self {
+        ApiSignature {
+            ty: String::new(),
+            name: String::new(),
+            impls: None,
+            generics: Vec::new(),
+            inputs: Vec::new(),
+            output: String::new(),
+        }
+    }
+
+    pub fn get_impl_name(&self) -> Option<String> {
+        Some(self.impls.clone()?.segments[0].ident.to_string())
     }
 }
 
-
-fn parse_api_signature(signature: &str) -> Result<Item, syn::Error> {
-    syn::parse_str(signature)
-}
-
-fn compare_api_signatures(sig1: &str, sig2: &str) -> bool {
-    let item1 = match parse_api_signature(sig1) {
-        Ok(item) => item,
-        Err(_) => return false, // Return false if parsing fails
-    };
-    let item2 = match parse_api_signature(sig2) {
-        Ok(item) => item,
-        Err(_) => return false, // Return false if parsing fails
-    };
-
-    // Compare relevant parts of the API signatures
-    match (&item1, &item2) {
-        (Item::Fn(item_fn1), Item::Fn(item_fn2)) => {
-            // Compare function names
-            if item_fn1.sig.ident != item_fn2.sig.ident {
-                return false;
-            }
-
-            // Compare parameter types
-            if item_fn1.sig.inputs.len() != item_fn2.sig.inputs.len() {
-                return false;
-            }
-            for (param1, param2) in item_fn1.sig.inputs.iter().zip(item_fn2.sig.inputs.iter()) {
-                if !compare_types(&param1, &param2) {
-                    return false;
+fn parse_api(api: &str) -> Option<ApiSignature>{
+    println!("Parsing API: {:#?}", api);
+    let item1:syn::Item = syn::parse_str(api).expect("Failed to parse API signature");
+    let mut api_signature = ApiSignature::new();
+    println!("{:#?}", item1);
+    match item1 {
+        Item::Fn(item_fn) => {
+            println!("Name: {:#?}", item_fn.sig.ident);
+            println!("Generics: {:#?}", item_fn.sig.generics);
+            println!("Inputs: {:#?}", item_fn.sig.inputs);
+            println!("Output: {:#?}", item_fn.sig.output);
+            // println!("Function inputs: {:?}", item_fn.sig.inputs);
+            // println!("Function output: {:?}", item_fn.sig.output);
+        }
+        Item::Impl(item_impl) => {
+            api_signature.impls = Some(item_impl.trait_?.1);
+            println!("Generics: {:#?}", item_impl.generics.params);
+            let target = item_impl.self_ty;
+            {
+                if let Type::Path(type_path) = *target {
+                    api_signature.name = type_path.path.segments[0].ident.to_string();
                 }
             }
-
-            // Compare return types
-            if !compare_return_types(&item_fn1.sig.output, &item_fn2.sig.output) {
-                return false;
-            }
-
-            // Compare generics if needed
-
-            // If all comparisons passed, return true
-            true
+            // println!("Target: {:#?}", target);
         }
-        _ => false, // Return false if items are not functions
+        _ => return None,
     }
+    return Some(api_signature);
 }
 
-fn compare_types(type1: &syn::FnArg, type2: &syn::FnArg) -> bool {
-    // Compare types of function arguments
-    // Implement as needed
-    true
-}
-
-fn compare_return_types(type1: &ReturnType, type2: &ReturnType) -> bool {
-    // Compare return types of functions
-    // Implement as needed
-    true
-}
