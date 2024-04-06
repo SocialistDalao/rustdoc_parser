@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{self, prelude::*};
 
-use serde::de::value::Error;
+use serde_json::Value;
 
 pub fn read_json(filename: &str) -> io::Result<serde_json::Value>{
     let mut file  = File::open(filename)?;
@@ -11,7 +11,7 @@ pub fn read_json(filename: &str) -> io::Result<serde_json::Value>{
     return Ok(json);
 }
 
-pub fn write_json(filename: &str, json: serde_json::Value) -> io::Result<()> {
+pub fn write_json(filename: &str, json: &serde_json::Value) -> io::Result<()> {
     let mut file = File::create(filename)?;
     file.write_all(json.to_string().as_bytes())?;
     return Ok(());
@@ -26,11 +26,7 @@ mod tests {
         println!("{:?}", json);
         json["name"] = serde_json::Value::String("Jack".to_string());
         println!("{:?}", json);
-        write_json("tmp.json", json).unwrap();
+        write_json("tmp.json", &json).unwrap();
     }
 
-    fn test_all_docs() {
-        let mut json = read_json("../all_docs.json").unwrap();
-
-    }
 }
