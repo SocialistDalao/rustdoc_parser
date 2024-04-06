@@ -23,9 +23,13 @@ extern crate syn;
 use syn::{parse_quote, Item, ItemImpl, ReturnType, Type};
 use std::fs::File;
 use std::io::prelude::*;
+use serde_json::Value;
 
 mod json;
 use json::{read_json, write_json};
+
+mod api;
+use api::{is_api_same, is_api_similar, is_impl_same};
 
 fn main() {
     // let input = "fn hello()";
@@ -161,60 +165,46 @@ fn test_single_func_parse(){
 
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ApiSignature {
-    pub ty: String,
-    pub name: String,
-    pub impls: Option<syn::Path>,
-    pub generics: Vec<Type>,
-    pub inputs: Vec<String>,
-    pub output: String,
-}
 
-impl ApiSignature {
-    pub fn new() -> Self {
-        ApiSignature {
-            ty: String::new(),
-            name: String::new(),
-            impls: None,
-            generics: Vec::new(),
-            inputs: Vec::new(),
-            output: String::new(),
-        }
-    }
 
-    pub fn get_impl_name(&self) -> Option<String> {
-        Some(self.impls.clone()?.segments[0].ident.to_string())
-    }
-}
+mod tests {
+    use std::io;
 
-fn parse_api(api: &str) -> Option<ApiSignature>{
-    println!("Parsing API: {:#?}", api);
-    let item1:syn::Item = syn::parse_str(api).expect("Failed to parse API signature");
-    let mut api_signature = ApiSignature::new();
-    println!("{:#?}", item1);
-    match item1 {
-        Item::Fn(item_fn) => {
-            println!("Name: {:#?}", item_fn.sig.ident);
-            println!("Generics: {:#?}", item_fn.sig.generics);
-            println!("Inputs: {:#?}", item_fn.sig.inputs);
-            println!("Output: {:#?}", item_fn.sig.output);
-            // println!("Function inputs: {:?}", item_fn.sig.inputs);
-            // println!("Function output: {:?}", item_fn.sig.output);
-        }
-        Item::Impl(item_impl) => {
-            api_signature.impls = Some(item_impl.trait_?.1);
-            println!("Generics: {:#?}", item_impl.generics.params);
-            let target = item_impl.self_ty;
-            {
-                if let Type::Path(type_path) = *target {
-                    api_signature.name = type_path.path.segments[0].ident.to_string();
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_all_docs() -> io::Result<()> {
+        const MIN_VERSION:usize = 1;
+        const MAX_VERSION:usize = 63;
+
+        let mut docs = read_json("../all_docs.json").unwrap();
+        write_json("./tmp_doc.json", &docs[10])?;
+        for i in MIN_VERSION..=MAX_VERSION {
+            let index = i - MIN_VERSION;
+            for(submodule_path, plain_submodule) in docs[index].as_object().unwrap() {
+                println!("{:?}", submodule_path);
+                println!("{:?}", plain_submodule);
+                if i == MAX_VERSION{
+                    continue;
+                }
+                if docs[index+1].get(submodule_path) == None {
+                    continue;
+                }
+                let mut api_list = plain_submodule["plain_apis"].as_array().or_else(|| Some(&Vec::new())).unwrap();
+                let mut new_api_list = docs[index+1][submodule_path]["plain_apis"].as_array().or_else(|| Some(&Vec::new())).unwrap();
+                for api in api_list{
+                    for (idx , new_api) in new_api_list.iter().enumerate(){
+                        if api["next_api_index"] != -1 && is_api_same(api, new_api){
+                            api["next_api_index"] = json!(idx as i64);
+                        }
+                    }
                 }
             }
-            // println!("Target: {:#?}", target);
         }
-        _ => return None,
-    }
-    return Some(api_signature);
-}
 
+        Ok(())
+        
+    }
+}
