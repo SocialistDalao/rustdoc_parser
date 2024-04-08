@@ -415,17 +415,20 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                 removed_count += len(api_list)
                 continue
             new_api_list = docs[index+1][submodule_path]['plain_apis']
-            for api in api_list:
-                for idx, new_api in enumerate(new_api_list):
-                    if is_same_api(api, new_api):
-                        if api['next_api_index'] != -1:
-                            # print('Error: next_api_index already set', api['submodule'], api['api'])
-                            break
-                        api['next_api_index'] = idx
-                        new_api['duration'] = api['duration'] + 1
+            # for api in api_list:
+                # for idx, new_api in enumerate(new_api_list):
+                #     if is_same_api(api, new_api):
+                #         if api['next_api_index'] != -1:
+                #             # print('Error: next_api_index already set', api['submodule'], api['api'])
+                #             break
+                #         api['next_api_index'] = idx
+                #         new_api['duration'] = api['duration'] + 1
             # analyze_api_evolution
             for api in api_list:
                 unstable = is_api_unstable(api)
+                if api['next_api_index'] != -1:
+                    new_api = new_api_list[api['next_api_index']]
+                    new_api['duration'] = api['duration'] + 1
                 if api['next_api_index'] == -1:
                     removed_count += 1
                     if unstable:
@@ -455,7 +458,7 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                         #     # print('Old:', api)
                         #     # print('New:', next_api)
                         #     truemodify_count += 1
-            print_removed_api_info(i, api_list, new_api_list)
+            # print_removed_api_info(i, api_list, new_api_list)
         if index > 0:
             new_api_count = api_count - remained_api_count
             new_unstable_count = unstable_api_count - remained_unstable_api_count
@@ -594,9 +597,10 @@ def distribution_summary(durations: dict):
     return results
         
 
-
 def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
+    !!!MAIN FUNTION!!!:
+
     Analyze the API evolution in different ways, aspects. (API change, Stability change, etc)
     1. Quick check same: Complete same.
     2. Detailed check same: API unchanged. Other changes are acceptable.
@@ -612,7 +616,7 @@ def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
     construct_api_binding(docs, MIN_VERSION, MAX_VERSION)
     # unchaged_api_duration_analysis(docs, MIN_VERSION, MAX_VERSION)
     # api_evolution_analysis(docs, MIN_VERSION, MAX_VERSION)
-    statistics_removed_api_info()
+    # statistics_removed_api_info()
 
 
 # TODO: Think carefully about the algorithm of abnormal RUF lifetime.
