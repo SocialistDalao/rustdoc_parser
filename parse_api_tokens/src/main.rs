@@ -63,6 +63,10 @@ fn main() {
 /// 2.1 Parsing: Do the plain parsing of all APIs.
 /// 2.2 Detailed Parsing: If no matching API, try to parse the API in detail. Generics and lifetime are taken into consideration.
 /// 3. Output: Overwrite the Json files with the detailed parsing.
+/// 
+/// Special Cases:
+/// 1. Trait `Iterator` changes cause 39355 APIs change.
+/// 2. From -> From<T> (1769), TryFrom -> TryFrom<U> (2512), Into/TryInto -> Into<T>/TryInto<U> (6047) are the most common changes in Version 34<->35.
 fn test_single_func_parse() -> Result<()> {
     const MIN_VERSION:usize = 1;
     const MAX_VERSION:usize = 63;
@@ -88,32 +92,36 @@ fn test_single_func_parse() -> Result<()> {
             let api_list = plain_submodule["plain_apis"].as_array_mut().context("No plain_apis")?;
             let new_api_list = new_doc[submodule_path]["plain_apis"].as_array().context("No plain_apis")?;
             for api in api_list{
+                api["next_api_index"] = json!(-1 as i64);
                 for (idx , new_api) in new_api_list.iter().enumerate(){
-                    if api["next_api_index"] != -1 && is_api_same(api, new_api){
+                    if is_api_same(api, new_api){
                         api["next_api_index"] = json!(idx as i64);
                         break;
                     }
                 }
-                if api["next_api_index"] == -1 {
-                    for (idx , new_api) in new_api_list.iter().enumerate(){
-                        if is_api_similar(api, new_api) {
-                            api["next_api_index"] = json!(idx as i64);
-                        }
+                if api["next_api_index"] != -1 {
+                    continue;
+                }
+                for (idx , new_api) in new_api_list.iter().enumerate(){
+                    if is_api_similar(api, new_api) {
+                        api["next_api_index"] = json!(idx as i64);
+                        break;
                     }
                 }
             }
             // Debug
-            let api_list = plain_submodule["plain_apis"].as_array_mut().context("No plain_apis")?;
-            let new_api_list = new_doc[submodule_path]["plain_apis"].as_array().context("No plain_apis")?;
-            debug_removed_new_api_info(i, api_list, new_api_list);
+            // let api_list = plain_submodule["plain_apis"].as_array_mut().context("No plain_apis")?;
+            // let new_api_list = new_doc[submodule_path]["plain_apis"].as_array().context("No plain_apis")?;
+            // debug_removed_new_api_info(i, api_list, new_api_list);
         }
     }
+    write_json("../all_docs.json", &docs)?;
     Ok(())
 }
 
 
 fn print_api(api: &Value) -> String {
-    format!("Submodule:{}, impl:{}, api:{}, extra:{}", api["submodule"], api["impl"], api["api"], api["api"].as_str().unwrap().chars().next().unwrap())
+    format!("Submodule:{}, impl:{}, api:{}", api["submodule"], api["impl"], api["api"])
 }
 
 
@@ -165,8 +173,8 @@ mod tests {
 
     #[test]
     fn test_parse_one_submodule() -> Result<()> {
-        const VERSION:usize = 1;
-        let submodule_path = "collections::fmt::RadixFmt";
+        const VERSION:usize = 58;
+        let submodule_path = "core::arch::aarch64::poly16x4x3_t";
         let mut docs = read_json("../all_docs.json").unwrap();
         // write_json("./tmp_doc.json", &docs[0..1])?;
 
@@ -180,23 +188,24 @@ mod tests {
         // The rest are compared in detail (with rustc parser).
         let api_list = plain_submodule["plain_apis"].as_array_mut().context("No plain_apis")?;
         let new_api_list = new_doc[submodule_path]["plain_apis"].as_array().context("No plain_apis")?;
-        debug_parsing_api_info(&api_list[2]);
-        debug_parsing_api_info(&new_api_list[2]);
-        println!("Same? {}", is_api_similar(&api_list[2], &new_api_list[2]));
+        // debug_parsing_api_info(&api_list[2]);
+        // debug_parsing_api_info(&new_api_list[2]);
+        // println!("Same? {}", is_api_similar(&api_list[2], &new_api_list[2]));
         for api in api_list{
-            // for (idx , new_api) in new_api_list.iter().enumerate(){
-            //     if api["next_api_index"] == -1 && is_api_same(api, new_api){
-            //         api["next_api_index"] = json!(idx as i64);
-            //         break;
-            //     }
-            //     println!("Simple Compare Failure: \n\t{:?} with \n\t{:?}", print_api(api), print_api(new_api));
-            // }
+            api["next_api_index"] = json!(-1 as i64);
+            for (idx , new_api) in new_api_list.iter().enumerate(){
+                if is_api_same(api, new_api){
+                    api["next_api_index"] = json!(idx as i64);
+                    break;
+                }
+                // println!("Simple Compare Failure: \n\t{:?} with \n\t{:?}", print_api(api), print_api(new_api));
+            }
             if api["next_api_index"] != -1 {
                 continue;
             }
             for (idx , new_api) in new_api_list.iter().enumerate(){
                 if is_api_similar(api, new_api) {
-                    println!("Complex Compare Success: \n\t{:?} with \n\t{:?}", print_api(api), print_api(new_api));
+                    // println!("Complex Compare Success: \n\t{:?} with \n\t{:?}", print_api(api), print_api(new_api));
                     api["next_api_index"] = json!(idx as i64);
                     break;
                 }

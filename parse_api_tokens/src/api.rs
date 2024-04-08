@@ -91,8 +91,8 @@ pub fn compare_api(api1: &str, api2: &str) -> bool {
 }
 
 // fn modify_impl_sig_generics(sig: &mut ImplSignature) {
-//     for mut param in sig.generics {
-//         modify_generic_params(&mut param);
+//     for param in sig.generics {
+//         modify_generic_params(param);
 //     }
 //     for mut param in sig.trait_generics {
 //         modify_generic_arguments(&mut param);
@@ -105,10 +105,14 @@ pub fn compare_api(api1: &str, api2: &str) -> bool {
 fn modify_generic_params(param: &mut GenericParam) {
     match param {
         GenericParam::Type(ty) => {
-            ty.ident = syn::Ident::new("X", ty.ident.span());
+            if ty.ident.to_string().len() == 1{
+                ty.ident = syn::Ident::new("X", ty.ident.span());
+            }
         }
         GenericParam::Lifetime(lt) => {
-            lt.lifetime.ident = syn::Ident::new("X", lt.lifetime.ident.span());
+            if lt.lifetime.ident.to_string().len() == 1{
+                lt.lifetime.ident = syn::Ident::new("X", lt.lifetime.ident.span());
+            }
         }
         _ => (),
     }
@@ -119,12 +123,31 @@ fn modify_generic_arguments(arg: &mut GenericArgument) {
         GenericArgument::Type(ty) => {
             if let syn::Type::Path(path) = ty {
                 if let Some(segment) = path.path.segments.first_mut() {
-                    segment.ident = syn::Ident::new("X", segment.ident.span());
+                    if segment.ident.to_string().len() == 1{
+                        segment.ident = syn::Ident::new("X", segment.ident.span());
+                    }
+                }
+            }
+            if let syn::Type::Reference(reference) = ty {
+                if let Some(lt) = &mut reference.lifetime {
+                    if lt.ident.to_string().len() == 1{
+                        lt.ident = syn::Ident::new("X", lt.ident.span());
+                    }
+                }
+                if let syn::Type::Path(mut path) = *reference.elem.clone() {
+                    if let Some(segment) = path.path.segments.first_mut() {
+                        if segment.ident.to_string().len() == 1{
+                            segment.ident = syn::Ident::new("X", segment.ident.span());
+                            *reference.elem = syn::Type::Path(path);
+                        }
+                    }
                 }
             }
         }
         GenericArgument::Lifetime(lt) => {
-            lt.ident = syn::Ident::new("X", lt.ident.span());
+            if lt.ident.to_string().len() == 1{
+                lt.ident = syn::Ident::new("X", lt.ident.span());
+            }
         }
         _ => (),
     }
@@ -134,7 +157,7 @@ fn modify_generic_arguments(arg: &mut GenericArgument) {
 /// The returned API signature includes breaking change to the generics for better analysis.
 pub fn parse_api(api_sig: &str) -> Option<ApiSignature>{
     // 1. Construct a valid parsable API signature, especially for impls, functions, and types.
-    let mut api_sig = {
+    let api_sig = {
         if api_sig.len() > 4 && &api_sig[0..4] == "impl" {
             api_sig.split("where").collect::<Vec<&str>>()[0].to_string() + "{}"
         }
@@ -182,18 +205,19 @@ pub fn parse_api(api_sig: &str) -> Option<ApiSignature>{
                 }
             }
             // Trait name and generics + lifetime
-            let trait_ = &item_impl.trait_.clone()?;
-            impl_sig.trait_name = trait_.1.segments[0].ident.clone().to_string();
-            if let PathArguments::AngleBracketed(arguments) = &trait_.1.segments[0].arguments{
-                for param in &arguments.args{
-                    match param {
-                        GenericArgument::Type(_) |
-                        GenericArgument::Lifetime(_) => {
-                            let mut param = param.clone();
-                            modify_generic_arguments(&mut param);
-                            impl_sig.trait_generics.insert(param);
+            if let Some(trait_) = &item_impl.trait_.clone(){
+                impl_sig.trait_name = trait_.1.segments[0].ident.clone().to_string();
+                if let PathArguments::AngleBracketed(arguments) = &trait_.1.segments[0].arguments{
+                    for param in &arguments.args{
+                        match param {
+                            GenericArgument::Type(_) |
+                            GenericArgument::Lifetime(_) => {
+                                let mut param = param.clone();
+                                modify_generic_arguments(&mut param);
+                                impl_sig.trait_generics.insert(param);
+                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
             }
@@ -224,13 +248,13 @@ pub fn parse_api(api_sig: &str) -> Option<ApiSignature>{
 
 
 mod test {
-    use std::{fs::File, io::Write};
+    use std::{collections::{BTreeMap, BTreeSet}, fs::File, io::Write};
 
     use super::*;
 
     fn test_compare(api1 : &str, api2 : &str, expected: bool){
         let result = compare_api(api1, api2);
-        if(result != expected){
+        if result != expected{
             let api1_sig = parse_api(api1);
             let api2_sig = parse_api(api2);
             println!("API1: {:#?}", api1_sig);
@@ -299,11 +323,36 @@ mod test {
         let api1 = "fn clone_from(&mut self, source: &Self)";
         let api2 = "fn clone_from(&mut self, source: &Self)";
         test_compare(api1, api2, true);
+        let api1 = "impl Display for RadixFmt<usize, Radix>";
+        let api2 = "impl Display for RadixFmt<isize, Radix>";
+        test_compare(api1, api2, false);
+        let api1 = "impl<'a, K, V> Entry<'a, K, V> where K: Ord";
+        let api2 = "impl<'a, K: Ord, V> Entry<'a, K, V>";
+        test_compare(api1, api2, true);
+        let api1 = "impl<'a, T> RangeBounds<T> for RangeInclusive<&'a T>";
+        let api2 = "impl<T, '_> RangeBounds<T> for RangeInclusive<&'_ T>";
+        test_compare(api1, api2, true);
+        let api1 = "impl<'a> BitXorAssign<&'a Wrapping<usize>> for Wrapping<usize>";
+        let api2 = "impl<'_> BitXorAssign<&'_ Wrapping<usize>> for Wrapping<usize>";
+        test_compare(api1, api2, true);
+        let api1 = "fn type_id(&Self) -> TypeId";
+        let api2 = "fn type_id(&self) -> TypeId";
+        test_compare(api1, api2, false);
         // let item1:syn::Item = syn::parse_str(api1).expect("Failed to parse API signature");
         // let item2:syn::Item = syn::parse_str(api2).expect("Failed to parse API signature");
         // create_file(file1, format!("{:#?}", item1).as_str());
         // create_file(file2, format!("{:#?}", item2).as_str());
     }
+
+    #[test]
+    fn test_tmp(){
+        let api = "fn type_id(&Self) -> TypeId{}";
+        let item:syn::Item = syn::parse_str(api).unwrap();
+        // let item = parse_api(api);
+        println!("{:#?}", item);
+    }
+
+
 }
 
 
