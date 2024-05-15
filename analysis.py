@@ -3,6 +3,163 @@ import re
 import os
 import sys
 from glob import glob
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+from matplotlib.gridspec import GridSpec
+
+
+def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
+    '''
+    !!!MAIN FUNTION!!!:
+
+    Analyze the API evolution in different ways, aspects. (API change, Stability change, etc)
+    1. Quick check same: Complete same.
+    2. Detailed check same: API unchanged. Other changes are acceptable.
+    3. Modified: API name same, but signature changed.
+    4. Removed: API removed.
+    We then compare the API evolution with the stability evolution to see if they really match.
+    Some API are duplicated, but with limited impact. 
+        Some are OK as ducumentation record is duplicated sometimes (rarely found).
+        Some are caused by duplicated info extraction (rarely found).
+    
+    '''
+    print('Start Analyzing API Evolution ...')
+    binding_results = construct_api_binding(docs, MIN_VERSION, MAX_VERSION)
+    duration_results = unchaged_api_duration_analysis(docs, MIN_VERSION, MAX_VERSION)
+    evolution_results = api_evolution_analysis(docs, MIN_VERSION, MAX_VERSION)
+    removed_api_results = statistics_removed_api_info()
+    format_results(binding_results, duration_results, evolution_results, removed_api_results)
+
+
+def format_results(binding_results:dict, duration_results:dict, evolution_results:dict, removed_api_results:dict):
+    '''
+    Format the results to show.
+    '''
+    # Binding Results
+    print('Writing API Evolution Results...')
+    api_file = open('binding_results.csv', 'w')
+    api_file.write('Version,API Count,Same,Modify,Removed,New,Unstable API Count,Unstable Same,Unstable Modify,Unstable Removed,Unstable New,Late Unstable,Stabilized,Change RUF\n')
+    for (version, results) in binding_results.items():
+        api_file.write(str(version) + ','
+                       + str(results['API Count']) + ','
+                       + str(results['Same']) + ','
+                       + str(results['Modify']) + ','
+                       + str(results['Removed']) + ','
+                       + str(results['New']) + ','
+                       + str(results['Unstable API Count']) + ','
+                       + str(results['Unstable Same']) + ','
+                       + str(results['Unstable Modify']) + ','
+                       + str(results['Unstable Removed']) + ','
+                       + str(results['Unstable New']) + ','
+                       + str(results['Late Unstable']) + ','
+                       + str(results['Stabilized']) + ','
+                       + str(results['Change RUF']) + '\n')
+    # Duration Results
+    print('Writing API Duration Results...')
+    duration_file = open('duration_results.csv', 'w')
+    duration_file.write('Version,Average Duration,Total Count,Average Duration Removed,Total Count Removed,Average Duration Unstable,Total Count Unstable,Average Duration Unstable Removed,Total Count Unstable Removed\n')
+    for (version, results) in duration_results.items():
+        duration_file.write(str(version) + ','
+                       + str(results['average_duration']) + ','
+                       + str(results['total_count']) + ','
+                       + str(results['average_duration_removed']) + ','
+                       + str(results['total_count_removed']) + ','
+                       + str(results['average_duration_unstable']) + ','
+                       + str(results['total_count_unstable']) + ','
+                       + str(results['average_duration_unstable_removed']) + ','
+                       + str(results['total_count_unstable_removed']) + '\n')
+    # Evolution Results
+    print('Writing API Evolution Results...')
+    evolution_file = open('evolution_results.csv', 'w')
+    evolution_file.write('Total,Removed,Unstable,Unstable Removed,Stabilized,Deprecated,Change RUF,Late Unstable,Unstable Twice,Not Deprecated Before Removed,Revoked Deprecated\n')
+    evolution_file.write(str(sum(evolution_results['Total'])) + ','
+                          + str(evolution_results['Removed']) + ','
+                            + str(evolution_results['Unstable']) + ','
+                            + str(evolution_results['Unstable Removed']) + ','
+                            + str(evolution_results['Stabilized']) + ','
+                            + str(evolution_results['Deprecated']) + ','
+                            + str(evolution_results['Change RUF']) + ','
+                            + str(evolution_results['Late Unstable']) + ','
+                            + str(evolution_results['Unstable Twice']) + ','
+                            + str(evolution_results['Not Deprecated Before Removed']) + ','
+                            + str(evolution_results['Revoked Deprecated']) + '\n')
+    # Removed API Results
+    print('Writing Removed API Results...')
+    removed_api_file = open('removed_api_results.csv', 'w')
+    removed_api_file.write('Removed API Count,New API Count,Removed Function Count,New Function Count,Removed Impl Count,New Impl Count,Removed Type Count,New Type Count\n')
+    removed_api_file.write(str(removed_api_results['Removed API Count']) + ','
+                            + str(removed_api_results['New API Count']) + ','
+                            + str(removed_api_results['Removed Function Count']) + ','
+                            + str(removed_api_results['New Function Count']) + ','
+                            + str(removed_api_results['Removed Impl Count']) + ','
+                            + str(removed_api_results['New Impl Count']) + ','
+                            + str(removed_api_results['Removed Type Count']) + ','
+                            + str(removed_api_results['New Type Count']) + '\n')
+
+
+
+def make_graphs():
+    '''
+    Read the results csv file and make graphs.
+    '''
+
+    fig = plt.figure(figsize=(11, 4))
+    gs = GridSpec(1, 2, width_ratios=[6, 4])  # 1 row, 2 columns with different widths
+    # Create subplots
+    ax1 = fig.add_subplot(gs[0, 0])  # Smaller subplot
+    ax2 = fig.add_subplot(gs[0, 1])  # Larger subplot
+
+    # Binding Results 1: API Count
+    data = pd.read_csv('binding_results.csv')
+    # fig1, ax1 = plt.subplots(figsize=(7, 4))
+    ax1.plot(data['Version'], data['API Count'], marker='o', label='All API', markersize=4) 
+    ax1.set_xlabel('Compiler Versions')
+    ax1.set_ylabel('API Count')
+    ax1.tick_params(axis='y')    
+    ax1.set_ylim(0, 80000)
+    # Secondary y-axis
+    ax12 = ax1.twinx()
+    ax12.plot(data['Version'], data['Unstable API Count'], marker='x', color = '#F08080', label='RUF API') 
+    ax12.set_ylabel('RUF API Count')
+    ax12.tick_params(axis='y')
+    # To create a combined legend for both lines
+    ax1.set_title('API Count Evolution')
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax12.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper left')
+
+    # Binding Results 2: RUF API Count Percentagele
+    # fig2, ax = plt.subplots(figsize=(5, 4))    
+    # ax.figure(figsize=(9, 5))  # Set the figure size (in inches)
+    ax2.plot(data['Version'], data['Unstable API Count']/data['API Count']*100, marker='o', markersize=4)
+    ax2.set_xlabel('Compiler Versions')
+    ax2.set_ylabel('RUF API Count Percentage')
+    ax2.yaxis.set_major_formatter(mtick.PercentFormatter())
+    ax2.set_title('RUF API Count Percentage Evolution')
+    plt.tight_layout() 
+    plt.savefig('API_Count_Evolution.pdf', format='pdf')
+
+
+    # Duration Results: Average Duration
+    plt.close(fig)
+    plt.figure().clear()
+    data = pd.read_csv('duration_results.csv')
+    plt.figure(figsize=(5, 3))
+    plt.plot(data['Version'], data['Average Duration'], marker='o', label='All API', markersize=4)
+    plt.plot(data['Version'], data['Average Duration Unstable'], marker='x', color = '#F08080', label='RUF API')
+    plt.xlabel('Compiler Versions')
+    plt.ylabel('Compiler Versions')
+    plt.title('Average API Lifecyle')
+    plt.legend(loc='upper left')
+    plt.tight_layout() 
+    plt.savefig('Average_Duration_Evolution.pdf', format='pdf')
+
+    # sns.set_style("whitegrid")
+    # column = ['ruf_type',  'inspect_window_time', 'duration_yes', 'last_usage']
+    # df = pd.DataFrame(data = records, columns=column)
+    # print(df)
+    # pal = {'Unstable':"#6495ED", 'Removed':"#F08080", 'Stable':'#80d819'}
 
 
 
@@ -225,6 +382,7 @@ def print_removed_api_info(current_version, api_list: list, new_api_list: list):
 
 
 def statistics_removed_api_info():
+    results = {}
     removed_fn_count = 0
     removed_impl_count = 0
     removed_type_count = 0
@@ -236,7 +394,7 @@ def statistics_removed_api_info():
             removed_fn_count += 1
         elif len(api['api']) > len('impl') and api['api'][0:4] == 'impl':
             removed_impl_count += 1
-            print('Removed API:', api)
+            # print('Removed API:', api)
         elif len(api['api']) > len('type ') and api['api'][0:5] == 'type ':
             removed_type_count += 1
     for api in new_API:
@@ -244,13 +402,22 @@ def statistics_removed_api_info():
             new_fn_count += 1
         elif len(api['api']) > len('impl') and api['api'][0:4] == 'impl':
             new_impl_count += 1
-            print('New API:', api)
+            # print('New API:', api)
         elif len(api['api']) > len('type ') and api['api'][0:5] == 'type ':
             new_type_count += 1
     print('Removed API Count', len(removed_API), 'New API Count', len(new_API))
     print('Removed Function Count', removed_fn_count, 'New Function Count', new_fn_count)
     print('Removed Impl Count', removed_impl_count, 'New Impl Count', new_impl_count)
     print('Removed Type Count', removed_type_count, 'New Type Count', new_type_count)
+    results['Removed API Count'] = len(removed_API)
+    results['New API Count'] = len(new_API)
+    results['Removed Function Count'] = removed_fn_count
+    results['New Function Count'] = new_fn_count
+    results['Removed Impl Count'] = removed_impl_count
+    results['New Impl Count'] = new_impl_count
+    results['Removed Type Count'] = removed_type_count
+    results['New Type Count'] = new_type_count
+    return results
 
 
 def print_new_module_info(doc:dict, doc_new:dict):
@@ -458,7 +625,7 @@ def construct_api_binding(docs:dict, MIN_VERSION, MAX_VERSION):
                         #     # print('Old:', api)
                         #     # print('New:', next_api)
                         #     truemodify_count += 1
-            # print_removed_api_info(i, api_list, new_api_list)
+            print_removed_api_info(i, api_list, new_api_list)
         if index > 0:
             new_api_count = api_count - remained_api_count
             new_unstable_count = unstable_api_count - remained_unstable_api_count
@@ -541,6 +708,7 @@ def unchaged_api_duration_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     Analyze the duration of unchanged APIs.
     '''
+    results = {}
     results_allapis = {}
     results_allapis_removed = {}
     results_allapis_unstable = {}
@@ -568,17 +736,26 @@ def unchaged_api_duration_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
         results_unstable_removed[i] = distribution_summary(duration_distribution_unstable_removed)
     print('All APIs Duration Summary')
     for (version, summary) in results_allapis.items():
-        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+        results[version] = {}
+        results[version]['average_duration'] = summary['average']
+        results[version]['total_count'] = summary['total']
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5f}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
     print('All APIs Removed Duration Summary')
     for (version, summary) in results_allapis_removed.items():
-        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+        results[version]['average_duration_removed'] = summary['average']
+        results[version]['total_count_removed'] = summary['total']
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5f}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
     print('All Unstable APIs Duration Summary')
     for (version, summary) in results_allapis_unstable.items():
-        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+        results[version]['average_duration_unstable'] = summary['average']
+        results[version]['total_count_unstable'] = summary['total']
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5f}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
     print('All Unstable APIs Removed Duration Summary')
     for (version, summary) in results_unstable_removed.items():
-        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
-        
+        results[version]['average_duration_unstable_removed'] = summary['average']
+        results[version]['total_count_unstable_removed'] = summary['total']
+        print('Version', '{:>2}'.format(version), 'Average Duration', '{:.5f}'.format(summary['average']), 'Total Count',  '{:>5}'.format(summary['total']))
+    return results
 
 def distribution_summary(durations: dict):
     '''
@@ -591,35 +768,12 @@ def distribution_summary(durations: dict):
         total += count
         total_duration += duration * count
     if total == 0:
-        return {'average': 0, 'total': 0}
+        return {'average': 0.0, 'total': 0}
     results['average'] = total_duration / total
     results['total'] = total
     return results
-        
+       
 
-def analyze_api_evolution(docs:dict, MIN_VERSION, MAX_VERSION):
-    '''
-    !!!MAIN FUNTION!!!:
-
-    Analyze the API evolution in different ways, aspects. (API change, Stability change, etc)
-    1. Quick check same: Complete same.
-    2. Detailed check same: API unchanged. Other changes are acceptable.
-    3. Modified: API name same, but signature changed.
-    4. Removed: API removed.
-    We then compare the API evolution with the stability evolution to see if they really match.
-    Some API are duplicated, but with limited impact. 
-        Some are OK as ducumentation record is duplicated sometimes (rarely found).
-        Some are caused by duplicated info extraction (rarely found).
-    
-    '''
-    print('Start Analyzing API Evolution ...')
-    construct_api_binding(docs, MIN_VERSION, MAX_VERSION)
-    # unchaged_api_duration_analysis(docs, MIN_VERSION, MAX_VERSION)
-    # api_evolution_analysis(docs, MIN_VERSION, MAX_VERSION)
-    # statistics_removed_api_info()
-
-
-# TODO: Think carefully about the algorithm of abnormal RUF lifetime.
 def api_evolution_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     Analyze the stability evolution in different ways, aspects. (Stability change, etc).
@@ -635,9 +789,11 @@ def api_evolution_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
     '''
     print('API Evolution (Lifetime) Analysis ...')
     # Do not analyze the last version. It's meaningless for lifetime analysis.
+    return_results = {}
     total = 0
     unstable = 0
     removed = 0
+    unstable_removed = 0
     deprecated = 0
     stabilized = 0
     change_ruf = 0
@@ -672,6 +828,8 @@ def api_evolution_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
                     #     continue
                     if is_removed != -1:
                         removed += 1
+                        if results['unstable'] != -1:
+                            unstable_removed += 1
                     if results['deprecated'] != -1:
                         deprecated += 1
                     if results['stabilized'] != -1:
@@ -686,8 +844,21 @@ def api_evolution_analysis(docs:dict, MIN_VERSION, MAX_VERSION):
                         not_deprecated_before_removed += 1
                     if results['revoked_deprecated'] != -1:
                         revoked_deprecated += 1
-    print('Total', total, 'Unstable', unstable, 'Stabilized', stabilized, 'Deprecated', deprecated, 'Removed', removed)
+    print('Total', total, 'Removed', removed)
+    print('Unstable', unstable, 'Unstable Removed', unstable_removed, 'Stabilized', stabilized, 'Deprecated', deprecated)
     print('Change RUF', change_ruf, 'Late Unstable', late_unstable, 'Unstable Twice', unstable_twice, 'Not Deprecated Before Removed', not_deprecated_before_removed, 'Revoked Deprecated', revoked_deprecated)
+    return_results['Total'] = total
+    return_results['Removed'] = removed
+    return_results['Unstable'] = unstable
+    return_results['Unstable Removed'] = unstable_removed
+    return_results['Stabilized'] = stabilized
+    return_results['Deprecated'] = deprecated
+    return_results['Change RUF'] = change_ruf
+    return_results['Late Unstable'] = late_unstable
+    return_results['Unstable Twice'] = unstable_twice
+    return_results['Not Deprecated Before Removed'] = not_deprecated_before_removed
+    return_results['Revoked Deprecated'] = revoked_deprecated
+    return return_results
 
 
                     
@@ -784,6 +955,9 @@ if sys.argv[1] == 'complete_selected':
     min = int(sys.argv[2])
     max = int(sys.argv[3])
     analyze_api_evolution(docs[min-1:max], min, max)
+if sys.argv[1] == 'results':
+    make_graphs()
+
 # with open('test_serial.json', 'r') as file:
 #     submodule = json.load(file)
 # print(*recover_info(submodule)[1], sep='\n')
