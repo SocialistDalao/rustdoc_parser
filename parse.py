@@ -724,7 +724,7 @@ def parse_html(html_path, version_num):
     1. We first call `parse_html_inband()` to get html metadata.
     2. Then, we parse all h2 items, which are implementations of the submodules.
     '''
-    print('Parsing html', html_path)
+    # print('Parsing html', html_path)
     html_content = open(html_path, 'r').read()
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -924,7 +924,7 @@ def parse_all_docs(MIN_VERSION = 1, MAX_VERSION = 63):
                 root_directory = file_name.split('rust-docs/share/doc/rust/html')[0]
                 relative_directory = file_name.split('rust-docs/share/doc/rust/html')[1]
                 json_file_path = root_directory + 'json_submodule' + relative_directory + '.json'
-                print(json_file_path)
+                # print(json_file_path)
                 os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
                 with open(json_file_path, 'w+') as file:
                     json.dump(submodule, file)
